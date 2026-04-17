@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forevefarm Admin — Customer & Product Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #1E1B3A;
+  --primary-soft: #2A2650;
+  --accent: #C9A961;
+  --accent2: #D4A5A5;
+  --surface: #FAF6F0;
+  --card: #FFFFFF;
+  --border: #E8DFD0;
+  --text: #1E1B3A;
+  --muted: #7A7469;
+  --success: #6B8E5A;
+  --warning: #E8A87C;
+  --danger: #C85A5A;
+  --info: #5B8BA8;
+  --sidebar-w: 240px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Sarabun', sans-serif;
+  background: var(--surface);
+  color: var(--text);
+  display: flex;
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+.mono { font-family: 'IBM Plex Mono', monospace; }
+
+/* ───── Sidebar ───── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--primary);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+  z-index: 100;
+  box-shadow: 4px 0 24px rgba(30,27,58,0.25);
+}
+
+.sidebar-logo {
+  padding: 20px 20px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.logo-mark {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.sidebar-logo h2 {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.sidebar-logo p {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 3px;
+}
+
+.sidebar-nav { padding: 14px 0; flex: 1; overflow-y: auto; }
+
+.nav-section {
+  padding: 12px 20px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 0.18s;
+  border-left: 3px solid transparent;
+  font-size: 14px;
+  color: rgba(255,255,255,0.75);
+}
+
+.nav-item:hover { background: rgba(255,255,255,0.06); color: white; }
+
+.nav-item.active {
+  background: rgba(201,169,97,0.16);
+  border-left-color: var(--accent);
+  color: white;
+}
+
+.nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+.sidebar-footer {
+  padding: 14px 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
+
+/* ───── Main ───── */
+.main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar h1 { font-size: 18px; font-weight: 700; color: var(--primary); }
+.topbar .subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn-primary { background: var(--accent); color: var(--primary); }
+.btn-primary:hover { background: #b89a55; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(201,169,97,0.35); }
+.btn-dark { background: var(--primary); color: white; }
+.btn-dark:hover { background: var(--primary-soft); }
+.btn-outline { background: white; color: var(--primary); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+.btn-success { background: var(--success); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+
+.content { padding: 26px 32px; flex: 1; }
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* ───── Stats grid ───── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent);
+}
+
+.stat-card.success::before { background: var(--success); }
+.stat-card.warning::before { background: var(--warning); }
+.stat-card.danger::before { background: var(--danger); }
+.stat-card.info::before { background: var(--info); }
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-top: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.stat-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ───── Section blocks ───── */
+.section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 22px;
+  overflow: hidden;
+}
+
+.section-head {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-head h3 { font-size: 15px; font-weight: 700; color: var(--primary); }
+.section-head .meta { font-size: 12px; color: var(--muted); }
+
+.section-body { padding: 16px 22px; }
+
+/* ───── Filter bar ───── */
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.filter-bar select,
+.filter-bar input {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-family: 'Sarabun', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: white;
+  outline: none;
+}
+
+.filter-bar input:focus,
+.filter-bar select:focus { border-color: var(--accent); }
+
+.filter-bar .search { flex: 1; min-width: 200px; }
+.filter-bar label { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* ───── Kanban ───── */
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(220px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.kanban-board.product { grid-template-columns: repeat(5, minmax(220px, 1fr)); }
+
+.kanban-col {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 10px;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.kanban-col-head {
+  padding: 4px 6px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.kanban-col-head .title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kanban-col-head .count {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.kanban-col-body { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 70vh; }
+
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.kanban-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30,27,58,0.08);
+}
+
+.kanban-card .urgency-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.urgency-urgent { background: var(--danger); color: white; }
+.urgency-vip    { background: var(--accent); color: var(--primary); }
+.urgency-cold   { background: #DDE3E8; color: var(--muted); }
+.urgency-normal { background: #EAE7DD; color: var(--muted); }
+
+.kanban-card .line-id {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.kanban-card .product-name { font-size: 13px; color: var(--text); margin-top: 3px; }
+
+.kanban-card .meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.kanban-card .price { font-weight: 700; color: var(--accent); font-family: 'IBM Plex Mono', monospace; }
+
+.kanban-card .time-tag {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ───── Table ───── */
+.table-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+table { width: 100%; border-collapse: collapse; }
+
+th {
+  background: var(--surface);
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text);
+}
+
+tr:hover td { background: rgba(201,169,97,0.05); }
+tr:last-child td { border-bottom: none; }
+
+.stage-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: rgba(91,139,168,0.15);
+  color: var(--info);
+}
+
+.stage-pill.confirmed,
+.stage-pill.shipped { background: rgba(107,142,90,0.18); color: var(--success); }
+.stage-pill.lost    { background: rgba(200,90,90,0.15); color: var(--danger); }
+.stage-pill.quoted,
+.stage-pill.nego    { background: rgba(232,168,124,0.2); color: #b8714d; }
+
+/* ───── Activity feed ───── */
+.activity-list { display: flex; flex-direction: column; }
+.activity-item {
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border);
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-time { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 12px; min-width: 110px; }
+.activity-text { color: var(--text); }
+.activity-actor { font-weight: 700; color: var(--primary); }
+.activity-text strong { color: var(--accent); font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+
+/* ───── Modal ───── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(30,27,58,0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.modal-backdrop.active { display: flex; }
+
+.modal {
+  background: var(--card);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+
+.modal-head {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-head h3 { font-size: 16px; font-weight: 700; color: var(--primary); }
+.modal-head .close { cursor: pointer; font-size: 22px; color: var(--muted); background: none; border: none; }
+.modal-head .close:hover { color: var(--danger); }
+
+.modal-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 22px; }
+.modal-tab {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.modal-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+
+.modal-foot {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ───── Form ───── */
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 18px; }
+.form-grid .full { grid-column: 1 / -1; }
+
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 5px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-family: 'Sarabun', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: white;
+  outline: none;
+}
+
+.field textarea { min-height: 80px; resize: vertical; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+
+.field-readout {
+  background: var(--surface);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-all;
+}
+
+/* ───── Toast ───── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--primary);
+  color: white;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  z-index: 300;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.25s;
+  pointer-events: none;
+  max-width: 360px;
+}
+
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: var(--success); }
+.toast.error   { background: var(--danger); }
+
+/* ───── Loading ───── */
+.loading {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(201,169,97,0.3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.urgent-list { display: flex; flex-direction: column; gap: 10px; }
+.urgent-item {
+  background: rgba(200,90,90,0.06);
+  border-left: 3px solid var(--danger);
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.urgent-item:hover { background: rgba(200,90,90,0.12); }
+.urgent-item .who { font-weight: 700; color: var(--primary); }
+.urgent-item .what { color: var(--text); margin-left: 6px; }
+.urgent-item .wait { font-size: 12px; color: var(--danger); font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+
+/* ───── Toggle group ───── */
+.toggle-group {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.toggle-group button {
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: 'Sarabun', sans-serif;
+}
+
+.toggle-group button.active { background: var(--card); color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+/* ───── Mobile ───── */
+@media (max-width: 900px) {
+  .sidebar { width: 60px; }
+  .sidebar-logo h2, .sidebar-logo p, .nav-section, .nav-item span:not(.icon), .sidebar-footer { display: none; }
+  .nav-item { justify-content: center; padding: 12px; }
+  .main { margin-left: 60px; }
+  .topbar { padding: 0 16px; }
+  .content { padding: 18px 14px; }
+  .kanban-board, .kanban-board.product { grid-template-columns: minmax(260px, 90vw); }
+  .form-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <span class="logo-mark">FOREVE</span>
+    <h2>Forevefarm Admin</h2>
+    <p>Customer & Product Pipeline</p>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">Pipeline</div>
+    <div class="nav-item active" data-page="page-dashboard"><span class="icon">📊</span><span>ภาพรวม</span></div>
+    <div class="nav-item" data-page="page-pipeline"><span class="icon">🎯</span><span>Customer Pipeline</span></div>
+    <div class="nav-item" data-page="page-customers"><span class="icon">📋</span><span>Customer List</span></div>
+
+    <div class="nav-section">Knowledge</div>
+    <div class="nav-item" data-page="page-products"><span class="icon">🛍</span><span>Product Feed</span></div>
+
+    <div class="nav-section">System</div>
+    <div class="nav-item" data-page="page-settings"><span class="icon">⚙️</span><span>ตั้งค่า</span></div>
+  </nav>
+
+  <div class="sidebar-footer">
+    Trial v1.0 · 2026-04-17
+  </div>
+</aside>
+
+<div class="main">
+
+  <div class="topbar">
+    <div>
+      <h1 id="page-title">ภาพรวม</h1>
+      <div class="subtitle" id="page-subtitle">Last sync: —</div>
+    </div>
+    <div class="topbar-actions" id="page-actions"></div>
+  </div>
+
+  <div class="content">
+
+    <!-- ─── Dashboard ─── -->
+    <section class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card info">
+          <div class="stat-label">Active Inquiries</div>
+          <div class="stat-value" id="stat-active">—</div>
+          <div class="stat-sub">ยังไม่ปิด deal</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-label">Waiting Info</div>
+          <div class="stat-value" id="stat-waiting">—</div>
+          <div class="stat-sub">รอ Product team</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Quoted Today</div>
+          <div class="stat-value" id="stat-quoted">—</div>
+          <div class="stat-sub">เสนอราคาวันนี้</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">Closed This Week</div>
+          <div class="stat-value" id="stat-closed">—</div>
+          <div class="stat-sub">ปิด deal สัปดาห์นี้</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h3>🔴 Urgent ตอนนี้</h3>
+          <span class="meta" id="urgent-count">0 รายการ</span>
+        </div>
+        <div class="section-body">
+          <div class="urgent-list" id="urgent-list">
+            <div class="empty">ไม่มี urgent item — เคลียร์หมดแล้วครับ</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h3>📜 Activity Feed</h3>
+          <span class="meta">20 entry ล่าสุด</span>
+        </div>
+        <div class="section-body">
+          <div class="activity-list" id="activity-list">
+            <div class="empty">ยังไม่มี activity</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Customer Pipeline ─── -->
+    <section class="page" id="page-pipeline">
+      <div class="filter-bar">
+        <div class="toggle-group" id="pipeline-view-toggle">
+          <button class="active" data-view="kanban">Kanban</button>
+          <button data-view="table">Table</button>
+        </div>
+        <select id="filter-stage"><option value="">ทุก stage</option></select>
+        <select id="filter-owner"><option value="">ทุก admin</option></select>
+        <select id="filter-shift">
+          <option value="">ทุก shift</option>
+          <option value="morning">Morning</option>
+          <option value="afternoon">Afternoon</option>
+          <option value="night">Night</option>
+        </select>
+        <select id="filter-urgency">
+          <option value="">ทุก urgency</option>
+          <option value="urgent">Urgent</option>
+          <option value="vip">VIP</option>
+          <option value="normal">Normal</option>
+          <option value="cold">Cold</option>
+        </select>
+        <input class="search" id="filter-search" placeholder="🔍 ค้นหา LINE ID / สินค้า / ชื่อ" />
+      </div>
+
+      <div id="pipeline-kanban" class="kanban-board"></div>
+      <div id="pipeline-table" class="table-wrap" style="display:none;"></div>
+    </section>
+
+    <!-- ─── Customer List ─── -->
+    <section class="page" id="page-customers">
+      <div class="filter-bar">
+        <select id="cust-list-stage"><option value="">ทุก stage</option></select>
+        <input class="search" id="cust-list-search" placeholder="🔍 ค้นหา..." />
+      </div>
+      <div id="customer-table" class="table-wrap"></div>
+    </section>
+
+    <!-- ─── Product Feed ─── -->
+    <section class="page" id="page-products">
+      <div class="filter-bar">
+        <select id="prod-filter-brand"><option value="">ทุก brand</option></select>
+        <select id="prod-filter-condition">
+          <option value="">ทุก condition</option>
+          <option value="new">New</option>
+          <option value="used">Used</option>
+          <option value="preorder">Preorder</option>
+        </select>
+        <input class="search" id="prod-filter-search" placeholder="🔍 ค้นหา product code / item" />
+      </div>
+      <div id="product-kanban" class="kanban-board product"></div>
+    </section>
+
+    <!-- ─── Settings ─── -->
+    <section class="page" id="page-settings">
+      <div class="section">
+        <div class="section-head"><h3>Admin Team</h3></div>
+        <div class="section-body">
+          <div class="table-wrap">
+            <table id="admin-table">
+              <thead><tr><th>ID</th><th>ชื่อ</th><th>Shift</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h3>System Info</h3></div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="field"><label>API URL</label><div class="field-readout" id="info-api-url">—</div></div>
+            <div class="field"><label>Last Activity</label><div class="field-readout" id="info-last-activity">—</div></div>
+            <div class="field"><label>Brands</label><div class="field-readout" id="info-brands">—</div></div>
+            <div class="field"><label>Build Date</label><div class="field-readout">2026-04-17 · Trial v1.0</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ─── Customer Modal ─── -->
+<div class="modal-backdrop" id="modal-customer">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="mc-title">New Inquiry</h3>
+      <button class="close" data-close="modal-customer">×</button>
+    </div>
+    <div class="modal-tabs" id="mc-tabs">
+      <div class="modal-tab active" data-tab="mc-info">Info</div>
+      <div class="modal-tab" data-tab="mc-actions">Actions</div>
+    </div>
+    <div class="modal-body">
+      <div class="tab-pane active" id="mc-info">
+        <div class="form-grid">
+          <div class="field"><label>LINE ID *</label><input id="mc-line_id" /></div>
+          <div class="field"><label>ชื่อลูกค้า</label><input id="mc-customer_name" /></div>
+          <div class="field"><label>Channel</label>
+            <select id="mc-channel">
+              <option value="Line OA">Line OA</option>
+              <option value="IG">IG</option>
+              <option value="FB">FB</option>
+              <option value="Openchat">Openchat</option>
+            </select>
+          </div>
+          <div class="field"><label>Brand</label><select id="mc-brand"></select></div>
+          <div class="field full"><label>Product Interest</label><input id="mc-product_interest" placeholder="เช่น LV Speedy 25" /></div>
+          <div class="field"><label>Product Code</label><input id="mc-product_code" /></div>
+          <div class="field"><label>Price Quoted (฿)</label><input id="mc-price_quoted" type="number" /></div>
+          <div class="field"><label>Admin Owner</label><select id="mc-admin_owner"></select></div>
+          <div class="field"><label>Shift</label>
+            <select id="mc-shift">
+              <option value="">—</option>
+              <option value="morning">Morning</option>
+              <option value="afternoon">Afternoon</option>
+              <option value="night">Night</option>
+            </select>
+          </div>
+          <div class="field"><label>Urgency</label>
+            <select id="mc-urgency">
+              <option value="normal">Normal</option>
+              <option value="urgent">Urgent</option>
+              <option value="vip">VIP</option>
+              <option value="cold">Cold</option>
+            </select>
+          </div>
+          <div class="field"><label>Stage</label><select id="mc-stage"></select></div>
+          <div class="field full"><label>Notes</label><textarea id="mc-notes"></textarea></div>
+          <div class="field" id="mc-readout-wrap" style="display:none;">
+            <label>Response Time</label>
+            <div class="field-readout" id="mc-response_time">—</div>
+          </div>
+          <div class="field" id="mc-readout-created" style="display:none;">
+            <label>Created</label>
+            <div class="field-readout" id="mc-created_at">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-pane" id="mc-actions">
+        <div class="form-grid">
+          <div class="field full">
+            <label>Move Stage</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-outline btn-sm" id="btn-move-back">← Back</button>
+              <button class="btn btn-dark btn-sm" id="btn-move-next">Next Stage →</button>
+            </div>
+          </div>
+          <div class="field full">
+            <label>Close Inquiry</label>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-success btn-sm" id="btn-close-won">✅ Won (Shipped)</button>
+              <button class="btn btn-danger btn-sm" id="btn-close-lost">❌ Lost</button>
+            </div>
+          </div>
+          <div class="field full">
+            <label>Reason / Note (สำหรับ close)</label>
+            <textarea id="mc-close_reason" placeholder="เช่น เลือกร้านอื่น"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-close="modal-customer">ยกเลิก</button>
+      <button class="btn btn-primary" id="mc-save-btn">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Product Modal ─── -->
+<div class="modal-backdrop" id="modal-product">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="mp-title">New Product</h3>
+      <button class="close" data-close="modal-product">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>Product Code *</label><input id="mp-product_code" /></div>
+        <div class="field"><label>Brand</label><select id="mp-brand"></select></div>
+        <div class="field full"><label>Item Name</label><input id="mp-item_name" /></div>
+        <div class="field"><label>Condition</label>
+          <select id="mp-condition">
+            <option value="new">New</option>
+            <option value="used">Used</option>
+            <option value="preorder">Preorder</option>
+          </select>
+        </div>
+        <div class="field"><label>Source</label>
+          <select id="mp-source">
+            <option value="">—</option>
+            <option value="EU">EU</option>
+            <option value="Asia">Asia</option>
+            <option value="Hand-carry">Hand-carry</option>
+          </select>
+        </div>
+        <div class="field"><label>Price Range</label><input id="mp-price_range" placeholder="40000-50000" /></div>
+        <div class="field"><label>Stage</label><select id="mp-stage"></select></div>
+        <div class="field"><label>Owner</label><input id="mp-owner" /></div>
+        <div class="field"><label>Data Status</label>
+          <select id="mp-data_status">
+            <option value="draft">Draft</option>
+            <option value="verified">Verified</option>
+            <option value="live">Live</option>
+          </select>
+        </div>
+        <div class="field full"><label>Photos URL (Drive link)</label><input id="mp-photos_url" /></div>
+        <div class="field full"><label>Notes</label><textarea id="mp-notes"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-close="modal-product">ยกเลิก</button>
+      <button class="btn btn-primary" id="mp-save-btn">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Single-page app — internal trial use, all dynamic content sanitized via esc().
+// Render strategy: build HTML strings from sanitized parts only; no user input
+// flows into innerHTML without esc(). Element IDs and CSS class names are static
+// constants in this file.
+
+const GS_API_URL = 'https://script.google.com/macros/s/AKfycbwI0Mvi8JVVFT299-EvUdmQ3gn-nhDjFOK_SADWNXfb9ZpBsZLI9gQZXq27ZnHUSXPK8w/exec';
+
+const state = {
+  customers: [],
+  products: [],
+  config: { admins: [], brands: [], stages_customer: [], stages_product: [] },
+  pipelineView: 'kanban',
+  editingCustomerId: null,
+  editingProductId: null,
+  filters: {
+    pipeline: { stage: '', owner: '', shift: '', urgency: '', search: '' },
+    customers: { stage: '', search: '' },
+    products: { brand: '', condition: '', search: '' }
+  }
+};
+
+const PAGE_TITLES = {
+  'page-dashboard':  { title: 'ภาพรวม',           sub: 'Dashboard + activity feed' },
+  'page-pipeline':   { title: 'Customer Pipeline', sub: 'Kanban / Table view' },
+  'page-customers':  { title: 'Customer List',     sub: 'Table + filter + search' },
+  'page-products':   { title: 'Product Feed',      sub: 'Knowledge feed สำหรับ admin' },
+  'page-settings':   { title: 'ตั้งค่า',            sub: 'Admin team + system info' }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  bindNav();
+  bindFilters();
+  bindViewToggle();
+  bindModalTabs();
+  bindModalActions();
+  setActionsForPage('page-dashboard');
+  refreshAll();
+});
+
+function bindNav() {
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => switchPage(item.dataset.page));
+  });
+}
+
+function switchPage(pageId) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === pageId));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === pageId));
+  const meta = PAGE_TITLES[pageId] || { title: pageId, sub: '' };
+  document.getElementById('page-title').textContent = meta.title;
+  document.getElementById('page-subtitle').textContent = meta.sub;
+  setActionsForPage(pageId);
+}
+
+function setActionsForPage(pageId) {
+  const a = document.getElementById('page-actions');
+  a.innerHTML = '';
+  const refresh = makeBtn('🔄 Refresh', 'btn btn-outline btn-sm', refreshAll);
+  a.appendChild(refresh);
+  if (pageId === 'page-products') {
+    a.appendChild(makeBtn('+ New Product', 'btn btn-primary btn-sm', openProductModal));
+  } else if (pageId !== 'page-settings') {
+    a.appendChild(makeBtn('+ New Inquiry', 'btn btn-primary btn-sm', openCustomerModal));
+  }
+}
+
+function makeBtn(label, cls, handler) {
+  const b = document.createElement('button');
+  b.className = cls;
+  b.textContent = label;
+  b.addEventListener('click', handler);
+  return b;
+}
+
+// ───── API ─────
+async function apiGet(action, params) {
+  const qs = new URLSearchParams({ action, ...(params || {}) }).toString();
+  const r = await fetch(GS_API_URL + '?' + qs, { method: 'GET', redirect: 'follow' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error);
+  return j.data;
+}
+
+async function apiPost(action, body) {
+  const payload = JSON.stringify({ action, ...body });
+  const r = await fetch(GS_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: payload,
+    redirect: 'follow'
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error);
+  return j.data;
+}
+
+async function refreshAll() {
+  if (GS_API_URL.startsWith('PASTE_')) {
+    toast('error', '⚠️ ยังไม่ได้ตั้ง GS_API_URL — เปิดดู SETUP-GUIDE.md');
+    return;
+  }
+  try {
+    document.getElementById('page-subtitle').textContent = 'กำลังโหลด...';
+    const [config, customers, products, stats, activity] = await Promise.all([
+      apiGet('getConfig'),
+      apiGet('listCustomers'),
+      apiGet('listProducts'),
+      apiGet('getStats'),
+      apiGet('listActivity', { limit: 20 })
+    ]);
+    state.config = normalizeConfig(config);
+    state.customers = customers;
+    state.products = products;
+    populateFilterDropdowns();
+    renderDashboard(stats, activity);
+    renderPipeline();
+    renderCustomerList();
+    renderProductFeed();
+    renderSettings(activity);
+    document.getElementById('page-subtitle').textContent = 'Last sync: ' + new Date().toLocaleTimeString('th-TH');
+  } catch (e) {
+    toast('error', '❌ เชื่อมต่อ Server ไม่ได้: ' + e.message);
+    document.getElementById('page-subtitle').textContent = 'Sync failed — กดปุ่ม Refresh ใหม่';
+  }
+}
+
+function normalizeConfig(cfg) {
+  return {
+    admins: Array.isArray(cfg.admins) ? cfg.admins : [],
+    brands: Array.isArray(cfg.brands) ? cfg.brands : (typeof cfg.brands === 'string' ? cfg.brands.split(',') : []),
+    stages_customer: Array.isArray(cfg.stages_customer) ? cfg.stages_customer : [],
+    stages_product: Array.isArray(cfg.stages_product) ? cfg.stages_product : []
+  };
+}
+
+function populateFilterDropdowns() {
+  ['filter-stage', 'cust-list-stage', 'mc-stage'].forEach(id => {
+    const el = document.getElementById(id);
+    const placeholder = el.querySelector('option[value=""]');
+    el.innerHTML = '';
+    if (placeholder) el.appendChild(placeholder.cloneNode(true));
+    state.config.stages_customer.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.key;
+      o.textContent = s.label;
+      el.appendChild(o);
+    });
+  });
+  ['mc-brand', 'mp-brand', 'prod-filter-brand'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    if (id === 'prod-filter-brand') {
+      const o = document.createElement('option');
+      o.value = ''; o.textContent = 'ทุก brand';
+      el.appendChild(o);
+    }
+    state.config.brands.forEach(b => {
+      const o = document.createElement('option');
+      o.value = b; o.textContent = b;
+      el.appendChild(o);
+    });
+  });
+  const ownerSel = document.getElementById('filter-owner');
+  ownerSel.innerHTML = '';
+  const allAdminOpt = document.createElement('option');
+  allAdminOpt.value = ''; allAdminOpt.textContent = 'ทุก admin';
+  ownerSel.appendChild(allAdminOpt);
+  state.config.admins.forEach(a => {
+    const o = document.createElement('option');
+    o.value = a.id; o.textContent = a.name + ' (' + a.id + ')';
+    ownerSel.appendChild(o);
+  });
+  const mcOwner = document.getElementById('mc-admin_owner');
+  mcOwner.innerHTML = '';
+  const noOwn = document.createElement('option');
+  noOwn.value = ''; noOwn.textContent = '—';
+  mcOwner.appendChild(noOwn);
+  state.config.admins.forEach(a => {
+    const o = document.createElement('option');
+    o.value = a.id; o.textContent = a.name;
+    mcOwner.appendChild(o);
+  });
+  const mpStage = document.getElementById('mp-stage');
+  mpStage.innerHTML = '';
+  state.config.stages_product.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.key; o.textContent = s.label;
+    mpStage.appendChild(o);
+  });
+}
+
+// ───── Dashboard ─────
+function renderDashboard(stats, activity) {
+  document.getElementById('stat-active').textContent  = stats.activeCount;
+  document.getElementById('stat-waiting').textContent = stats.waitingCount;
+  document.getElementById('stat-quoted').textContent  = stats.quotedTodayCount;
+  document.getElementById('stat-closed').textContent  = stats.closedThisWeekCount;
+
+  const urgentList = document.getElementById('urgent-list');
+  document.getElementById('urgent-count').textContent = stats.urgent.length + ' รายการ';
+  urgentList.innerHTML = '';
+  if (!stats.urgent.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'ไม่มี urgent item — เคลียร์หมดแล้วครับ';
+    urgentList.appendChild(empty);
+  } else {
+    stats.urgent.forEach(c => urgentList.appendChild(renderUrgentItem(c)));
+  }
+
+  renderActivity(activity);
+}
+
+function renderUrgentItem(c) {
+  const wait = waitMinutes(c.created_at);
+  const root = document.createElement('div');
+  root.className = 'urgent-item';
+  root.addEventListener('click', () => editCustomer(c.id));
+  const left = document.createElement('div');
+  const who = document.createElement('span');
+  who.className = 'who'; who.textContent = c.line_id || c.customer_name || c.id;
+  const what = document.createElement('span');
+  what.className = 'what'; what.textContent = '— ' + (c.product_interest || '-');
+  left.appendChild(who); left.appendChild(what);
+  const right = document.createElement('div');
+  right.className = 'wait'; right.textContent = formatWait(wait);
+  root.appendChild(left); root.appendChild(right);
+  return root;
+}
+
+function renderActivity(rows) {
+  const list = document.getElementById('activity-list');
+  list.innerHTML = '';
+  if (!rows.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty'; empty.textContent = 'ยังไม่มี activity';
+    list.appendChild(empty);
+    return;
+  }
+  rows.forEach(a => list.appendChild(renderActivityRow(a)));
+}
+
+function renderActivityRow(a) {
+  const row = document.createElement('div');
+  row.className = 'activity-item';
+  const time = document.createElement('span');
+  time.className = 'activity-time'; time.textContent = formatTime(a.timestamp);
+  const text = document.createElement('span');
+  text.className = 'activity-text';
+  const actor = document.createElement('span');
+  actor.className = 'activity-actor'; actor.textContent = a.actor || 'system';
+  text.appendChild(actor);
+  text.appendChild(document.createTextNode(' '));
+  appendActivityVerb(text, a);
+  row.appendChild(time); row.appendChild(text);
+  return row;
+}
+
+function appendActivityVerb(parent, a) {
+  const eid = String(a.entity_id || '');
+  const eidNode = () => {
+    const s = document.createElement('strong');
+    s.textContent = eid;
+    return s;
+  };
+  switch (a.action) {
+    case 'create':
+      parent.appendChild(document.createTextNode('created ' + (a.entity_type || '') + ' '));
+      parent.appendChild(eidNode()); break;
+    case 'update':
+      parent.appendChild(document.createTextNode('updated ' + (a.entity_type || '') + ' '));
+      parent.appendChild(eidNode()); break;
+    case 'move_stage':
+      parent.appendChild(document.createTextNode('moved '));
+      parent.appendChild(eidNode());
+      parent.appendChild(document.createTextNode(' ' + (a.from_stage || '—') + ' → ' + (a.to_stage || ''))); break;
+    case 'close':
+      parent.appendChild(document.createTextNode('closed '));
+      parent.appendChild(eidNode());
+      parent.appendChild(document.createTextNode(' as ' + (a.to_stage || ''))); break;
+    case 'seed':
+      parent.appendChild(document.createTextNode('seeded sample data (' + (a.entity_type || '') + ')')); break;
+    default:
+      parent.appendChild(document.createTextNode((a.action || '') + ' '));
+      parent.appendChild(eidNode());
+  }
+}
+
+// ───── Pipeline ─────
+function bindFilters() {
+  ['filter-stage','filter-owner','filter-shift','filter-urgency','filter-search'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      state.filters.pipeline.stage = document.getElementById('filter-stage').value;
+      state.filters.pipeline.owner = document.getElementById('filter-owner').value;
+      state.filters.pipeline.shift = document.getElementById('filter-shift').value;
+      state.filters.pipeline.urgency = document.getElementById('filter-urgency').value;
+      state.filters.pipeline.search = document.getElementById('filter-search').value;
+      renderPipeline();
+    });
+  });
+  ['cust-list-stage','cust-list-search'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      state.filters.customers.stage = document.getElementById('cust-list-stage').value;
+      state.filters.customers.search = document.getElementById('cust-list-search').value;
+      renderCustomerList();
+    });
+  });
+  ['prod-filter-brand','prod-filter-condition','prod-filter-search'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      state.filters.products.brand = document.getElementById('prod-filter-brand').value;
+      state.filters.products.condition = document.getElementById('prod-filter-condition').value;
+      state.filters.products.search = document.getElementById('prod-filter-search').value;
+      renderProductFeed();
+    });
+  });
+}
+
+function bindViewToggle() {
+  document.querySelectorAll('#pipeline-view-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#pipeline-view-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.pipelineView = btn.dataset.view;
+      document.getElementById('pipeline-kanban').style.display = state.pipelineView === 'kanban' ? 'grid' : 'none';
+      document.getElementById('pipeline-table').style.display  = state.pipelineView === 'table' ? 'block' : 'none';
+    });
+  });
+}
+
+function filteredPipelineCustomers() {
+  const f = state.filters.pipeline;
+  return state.customers.filter(c => {
+    if (f.stage && c.stage !== f.stage) return false;
+    if (f.owner && c.admin_owner !== f.owner) return false;
+    if (f.shift && c.shift !== f.shift) return false;
+    if (f.urgency && c.urgency !== f.urgency) return false;
+    if (f.search) {
+      const q = f.search.toLowerCase();
+      const hay = [c.line_id, c.customer_name, c.product_interest, c.product_code, c.id].join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+}
+
+function renderPipeline() {
+  const board = document.getElementById('pipeline-kanban');
+  const stages = state.config.stages_customer;
+  const customers = filteredPipelineCustomers();
+
+  board.innerHTML = '';
+  stages.forEach(s => {
+    const items = customers.filter(c => c.stage === s.key);
+    board.appendChild(renderKanbanColumn(s.label, items, items.map(renderCustomerCard)));
+  });
+
+  renderPipelineTable(customers);
+}
+
+function renderKanbanColumn(title, items, cardEls) {
+  const col = document.createElement('div');
+  col.className = 'kanban-col';
+  const head = document.createElement('div');
+  head.className = 'kanban-col-head';
+  const t = document.createElement('div'); t.className = 'title'; t.textContent = title;
+  const c = document.createElement('div'); c.className = 'count'; c.textContent = items.length + ' รายการ';
+  head.appendChild(t); head.appendChild(c);
+  col.appendChild(head);
+  const body = document.createElement('div'); body.className = 'kanban-col-body';
+  if (!cardEls.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.style.cssText = 'padding:20px 8px; font-size:12px;';
+    empty.textContent = 'ว่าง';
+    body.appendChild(empty);
+  } else {
+    cardEls.forEach(el => body.appendChild(el));
+  }
+  col.appendChild(body);
+  return col;
+}
+
+function renderCustomerCard(c) {
+  const card = document.createElement('div');
+  card.className = 'kanban-card';
+  card.addEventListener('click', () => editCustomer(c.id));
+
+  const urgTag = document.createElement('span');
+  const urg = c.urgency || 'normal';
+  urgTag.className = 'urgency-tag urgency-' + urg;
+  urgTag.textContent = urg.toUpperCase();
+  card.appendChild(urgTag);
+
+  const lineId = document.createElement('div');
+  lineId.className = 'line-id';
+  lineId.textContent = c.line_id || c.id;
+  card.appendChild(lineId);
+
+  const prod = document.createElement('div');
+  prod.className = 'product-name';
+  prod.textContent = c.product_interest || '-';
+  card.appendChild(prod);
+
+  const meta = document.createElement('div');
+  meta.className = 'meta-row';
+  const price = document.createElement('span');
+  price.className = 'price';
+  price.textContent = c.price_quoted ? '฿' + Number(c.price_quoted).toLocaleString('th-TH') : '—';
+  const owner = document.createElement('span');
+  owner.textContent = '👤 ' + (c.admin_owner || '—');
+  meta.appendChild(price); meta.appendChild(owner);
+  card.appendChild(meta);
+
+  if (c.created_at) {
+    const time = document.createElement('div');
+    time.className = 'time-tag';
+    time.textContent = '⏱ ' + formatWait(waitMinutes(c.created_at));
+    card.appendChild(time);
+  }
+  return card;
+}
+
+function renderPipelineTable(customers) {
+  const host = document.getElementById('pipeline-table');
+  host.innerHTML = '';
+  host.appendChild(buildCustomerTable(customers));
+}
+
+function buildCustomerTable(rows) {
+  if (!rows.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'ไม่มีข้อมูล';
+    return empty;
+  }
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const trh = document.createElement('tr');
+  ['ID','LINE ID','สินค้า','Brand','Stage','Owner','Urgency','ราคา','Created'].forEach(h => {
+    const th = document.createElement('th'); th.textContent = h; trh.appendChild(th);
+  });
+  thead.appendChild(trh); table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', () => editCustomer(c.id));
+    appendCell(tr, c.id, 'mono');
+    appendCell(tr, c.line_id || '', 'mono');
+    appendCell(tr, c.product_interest || '-');
+    appendCell(tr, c.brand || '-');
+    const stageTd = document.createElement('td');
+    const pill = document.createElement('span');
+    pill.className = 'stage-pill ' + (c.stage || '');
+    pill.textContent = stageLabel(c.stage);
+    stageTd.appendChild(pill); tr.appendChild(stageTd);
+    appendCell(tr, c.admin_owner || '—');
+    const urgTd = document.createElement('td');
+    const urgTag = document.createElement('span');
+    const urg = c.urgency || 'normal';
+    urgTag.className = 'urgency-tag urgency-' + urg;
+    urgTag.textContent = urg.toUpperCase();
+    urgTd.appendChild(urgTag); tr.appendChild(urgTd);
+    appendCell(tr, c.price_quoted ? '฿' + Number(c.price_quoted).toLocaleString('th-TH') : '—', 'mono');
+    appendCell(tr, formatDate(c.created_at));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  const wrap = document.createElement('div');
+  wrap.appendChild(table);
+  return wrap.firstChild;
+}
+
+function appendCell(tr, text, cls) {
+  const td = document.createElement('td');
+  if (cls) td.className = cls;
+  td.textContent = text;
+  tr.appendChild(td);
+}
+
+// ───── Customer List ─────
+function renderCustomerList() {
+  const f = state.filters.customers;
+  const rows = state.customers.filter(c => {
+    if (f.stage && c.stage !== f.stage) return false;
+    if (f.search) {
+      const q = f.search.toLowerCase();
+      const hay = [c.line_id, c.customer_name, c.product_interest, c.product_code, c.id].join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+  const host = document.getElementById('customer-table');
+  host.innerHTML = '';
+  host.appendChild(buildCustomerTable(rows));
+}
+
+// ───── Product Feed ─────
+function renderProductFeed() {
+  const board = document.getElementById('product-kanban');
+  const stages = state.config.stages_product;
+  const f = state.filters.products;
+  const products = state.products.filter(p => {
+    if (f.brand && p.brand !== f.brand) return false;
+    if (f.condition && p.condition !== f.condition) return false;
+    if (f.search) {
+      const q = f.search.toLowerCase();
+      const hay = [p.product_code, p.item_name, p.id].join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+  board.innerHTML = '';
+  stages.forEach(s => {
+    const items = products.filter(p => p.stage === s.key);
+    board.appendChild(renderKanbanColumn(s.label, items, items.map(renderProductCard)));
+  });
+}
+
+function renderProductCard(p) {
+  const card = document.createElement('div');
+  card.className = 'kanban-card';
+  card.addEventListener('click', () => editProduct(p.id));
+
+  const code = document.createElement('div');
+  code.className = 'line-id';
+  code.textContent = p.product_code || p.id;
+  card.appendChild(code);
+
+  const name = document.createElement('div');
+  name.className = 'product-name';
+  name.textContent = p.item_name || '-';
+  card.appendChild(name);
+
+  const meta = document.createElement('div');
+  meta.className = 'meta-row';
+  const left = document.createElement('span');
+  const brandStrong = document.createElement('strong');
+  brandStrong.textContent = p.brand || '';
+  left.appendChild(brandStrong);
+  left.appendChild(document.createTextNode(' · ' + (p.condition || '')));
+  const right = document.createElement('span');
+  right.textContent = '👤 ' + (p.owner || '—');
+  meta.appendChild(left); meta.appendChild(right);
+  card.appendChild(meta);
+
+  const price = document.createElement('div');
+  price.className = 'time-tag';
+  price.textContent = '💰 ' + (p.price_range || '—');
+  card.appendChild(price);
+  return card;
+}
+
+// ───── Settings ─────
+function renderSettings(activity) {
+  const tbody = document.querySelector('#admin-table tbody');
+  tbody.innerHTML = '';
+  state.config.admins.forEach(a => {
+    const tr = document.createElement('tr');
+    appendCell(tr, a.id, 'mono');
+    appendCell(tr, a.name || '');
+    appendCell(tr, a.shift || '');
+    tbody.appendChild(tr);
+  });
+  document.getElementById('info-api-url').textContent = GS_API_URL.startsWith('PASTE_')
+    ? '⚠️ ยังไม่ได้ตั้ง — เปิด SETUP-GUIDE.md' : GS_API_URL;
+  document.getElementById('info-brands').textContent = state.config.brands.join(' · ');
+  document.getElementById('info-last-activity').textContent = activity[0]
+    ? formatTime(activity[0].timestamp) + ' · ' + (activity[0].action || '') + ' ' + (activity[0].entity_id || '')
+    : '—';
+}
+
+// ───── Customer Modal ─────
+function bindModalTabs() {
+  document.querySelectorAll('#mc-tabs .modal-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('#mc-tabs .modal-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.querySelectorAll('#modal-customer .tab-pane').forEach(x => x.classList.remove('active'));
+      document.getElementById(t.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+function bindModalActions() {
+  document.querySelectorAll('[data-close]').forEach(b => {
+    b.addEventListener('click', () => closeModal(b.dataset.close));
+  });
+  document.getElementById('mc-save-btn').addEventListener('click', saveCustomer);
+  document.getElementById('mp-save-btn').addEventListener('click', saveProduct);
+  document.getElementById('btn-move-back').addEventListener('click', moveStageBack);
+  document.getElementById('btn-move-next').addEventListener('click', moveStageNext);
+  document.getElementById('btn-close-won').addEventListener('click', () => closeAsOutcome('won'));
+  document.getElementById('btn-close-lost').addEventListener('click', () => closeAsOutcome('lost'));
+}
+
+function openCustomerModal() {
+  state.editingCustomerId = null;
+  document.getElementById('mc-title').textContent = 'New Inquiry';
+  ['mc-line_id','mc-customer_name','mc-product_interest','mc-product_code','mc-price_quoted','mc-notes','mc-close_reason'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('mc-channel').value = 'Line OA';
+  document.getElementById('mc-urgency').value = 'normal';
+  document.getElementById('mc-stage').value = 'new';
+  document.getElementById('mc-shift').value = '';
+  document.getElementById('mc-admin_owner').value = '';
+  document.getElementById('mc-brand').value = state.config.brands[0] || '';
+  document.getElementById('mc-readout-wrap').style.display = 'none';
+  document.getElementById('mc-readout-created').style.display = 'none';
+  resetModalTabs();
+  openModal('modal-customer');
+}
+
+function editCustomer(id) {
+  const c = state.customers.find(x => x.id === id);
+  if (!c) return toast('error', 'ไม่พบข้อมูล');
+  state.editingCustomerId = id;
+  document.getElementById('mc-title').textContent = id + ' · ' + (c.line_id || '');
+  document.getElementById('mc-line_id').value = c.line_id || '';
+  document.getElementById('mc-customer_name').value = c.customer_name || '';
+  document.getElementById('mc-channel').value = c.channel || 'Line OA';
+  document.getElementById('mc-brand').value = c.brand || (state.config.brands[0] || '');
+  document.getElementById('mc-product_interest').value = c.product_interest || '';
+  document.getElementById('mc-product_code').value = c.product_code || '';
+  document.getElementById('mc-price_quoted').value = c.price_quoted || '';
+  document.getElementById('mc-admin_owner').value = c.admin_owner || '';
+  document.getElementById('mc-shift').value = c.shift || '';
+  document.getElementById('mc-urgency').value = c.urgency || 'normal';
+  document.getElementById('mc-stage').value = c.stage || 'new';
+  document.getElementById('mc-notes').value = c.notes || '';
+  document.getElementById('mc-close_reason').value = '';
+
+  document.getElementById('mc-readout-wrap').style.display = '';
+  document.getElementById('mc-readout-created').style.display = '';
+  document.getElementById('mc-response_time').textContent = c.response_time_min != null
+    ? c.response_time_min + ' นาที' : 'ยังไม่ได้ quote';
+  document.getElementById('mc-created_at').textContent = formatDateTime(c.created_at);
+
+  resetModalTabs();
+  openModal('modal-customer');
+}
+
+function resetModalTabs() {
+  document.querySelectorAll('#mc-tabs .modal-tab').forEach((t,i) => t.classList.toggle('active', i === 0));
+  document.querySelectorAll('#modal-customer .tab-pane').forEach((p,i) => p.classList.toggle('active', i === 0));
+}
+
+async function saveCustomer() {
+  const payload = {
+    line_id: document.getElementById('mc-line_id').value.trim(),
+    customer_name: document.getElementById('mc-customer_name').value.trim(),
+    channel: document.getElementById('mc-channel').value,
+    brand: document.getElementById('mc-brand').value,
+    product_interest: document.getElementById('mc-product_interest').value.trim(),
+    product_code: document.getElementById('mc-product_code').value.trim(),
+    price_quoted: document.getElementById('mc-price_quoted').value || '',
+    admin_owner: document.getElementById('mc-admin_owner').value,
+    shift: document.getElementById('mc-shift').value,
+    urgency: document.getElementById('mc-urgency').value,
+    stage: document.getElementById('mc-stage').value,
+    notes: document.getElementById('mc-notes').value.trim()
+  };
+  if (!payload.line_id) return toast('error', 'กรอก LINE ID ก่อน');
+  try {
+    if (state.editingCustomerId) {
+      const before = state.customers.find(x => x.id === state.editingCustomerId);
+      await apiPost('updateCustomer', { id: state.editingCustomerId, ...payload });
+      if (before && before.stage !== payload.stage) {
+        await apiPost('moveCustomerStage', { id: state.editingCustomerId, to_stage: payload.stage });
+      }
+      toast('success', '✓ บันทึก ' + state.editingCustomerId);
+    } else {
+      const r = await apiPost('addCustomer', payload);
+      toast('success', '✓ สร้าง ' + r.id);
+    }
+    closeModal('modal-customer');
+    refreshAll();
+  } catch (e) {
+    toast('error', '❌ ' + e.message);
+  }
+}
+
+async function moveStageNext() {
+  if (!state.editingCustomerId) return;
+  const c = state.customers.find(x => x.id === state.editingCustomerId);
+  const stages = state.config.stages_customer.map(s => s.key);
+  const i = stages.indexOf(c.stage);
+  if (i < 0 || i >= stages.length - 1) return toast('error', 'อยู่ stage สุดท้ายแล้ว');
+  await doMoveStage(stages[i+1]);
+}
+
+async function moveStageBack() {
+  if (!state.editingCustomerId) return;
+  const c = state.customers.find(x => x.id === state.editingCustomerId);
+  const stages = state.config.stages_customer.map(s => s.key);
+  const i = stages.indexOf(c.stage);
+  if (i <= 0) return toast('error', 'อยู่ stage แรกแล้ว');
+  await doMoveStage(stages[i-1]);
+}
+
+async function doMoveStage(toStage) {
+  try {
+    await apiPost('moveCustomerStage', { id: state.editingCustomerId, to_stage: toStage });
+    toast('success', '→ ' + stageLabel(toStage));
+    closeModal('modal-customer');
+    refreshAll();
+  } catch (e) { toast('error', '❌ ' + e.message); }
+}
+
+async function closeAsOutcome(outcome) {
+  if (!state.editingCustomerId) return;
+  const reason = document.getElementById('mc-close_reason').value.trim();
+  try {
+    await apiPost('closeCustomer', { id: state.editingCustomerId, outcome: outcome, reason: reason });
+    toast('success', outcome === 'won' ? '✅ ปิด deal' : '❌ Lost');
+    closeModal('modal-customer');
+    refreshAll();
+  } catch (e) { toast('error', '❌ ' + e.message); }
+}
+
+// ───── Product Modal ─────
+function openProductModal() {
+  state.editingProductId = null;
+  document.getElementById('mp-title').textContent = 'New Product';
+  ['mp-product_code','mp-item_name','mp-price_range','mp-photos_url','mp-owner','mp-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('mp-condition').value = 'new';
+  document.getElementById('mp-source').value = '';
+  document.getElementById('mp-data_status').value = 'draft';
+  document.getElementById('mp-stage').value = (state.config.stages_product[0] && state.config.stages_product[0].key) || 'new';
+  document.getElementById('mp-brand').value = state.config.brands[0] || '';
+  openModal('modal-product');
+}
+
+function editProduct(id) {
+  const p = state.products.find(x => x.id === id);
+  if (!p) return toast('error', 'ไม่พบข้อมูล');
+  state.editingProductId = id;
+  document.getElementById('mp-title').textContent = id + ' · ' + (p.product_code || '');
+  document.getElementById('mp-product_code').value = p.product_code || '';
+  document.getElementById('mp-brand').value = p.brand || (state.config.brands[0] || '');
+  document.getElementById('mp-item_name').value = p.item_name || '';
+  document.getElementById('mp-condition').value = p.condition || 'new';
+  document.getElementById('mp-source').value = p.source || '';
+  document.getElementById('mp-price_range').value = p.price_range || '';
+  document.getElementById('mp-photos_url').value = p.photos_url || '';
+  document.getElementById('mp-data_status').value = p.data_status || 'draft';
+  document.getElementById('mp-stage').value = p.stage || 'new';
+  document.getElementById('mp-owner').value = p.owner || '';
+  document.getElementById('mp-notes').value = p.notes || '';
+  openModal('modal-product');
+}
+
+async function saveProduct() {
+  const payload = {
+    product_code: document.getElementById('mp-product_code').value.trim(),
+    brand: document.getElementById('mp-brand').value,
+    item_name: document.getElementById('mp-item_name').value.trim(),
+    condition: document.getElementById('mp-condition').value,
+    source: document.getElementById('mp-source').value,
+    price_range: document.getElementById('mp-price_range').value.trim(),
+    photos_url: document.getElementById('mp-photos_url').value.trim(),
+    data_status: document.getElementById('mp-data_status').value,
+    stage: document.getElementById('mp-stage').value,
+    owner: document.getElementById('mp-owner').value.trim(),
+    notes: document.getElementById('mp-notes').value.trim()
+  };
+  if (!payload.product_code) return toast('error', 'กรอก Product Code ก่อน');
+  try {
+    if (state.editingProductId) {
+      const before = state.products.find(x => x.id === state.editingProductId);
+      await apiPost('updateProduct', { id: state.editingProductId, ...payload });
+      if (before && before.stage !== payload.stage) {
+        await apiPost('moveProductStage', { id: state.editingProductId, to_stage: payload.stage });
+      }
+      toast('success', '✓ บันทึก ' + state.editingProductId);
+    } else {
+      const r = await apiPost('addProduct', payload);
+      toast('success', '✓ สร้าง ' + r.id);
+    }
+    closeModal('modal-product');
+    refreshAll();
+  } catch (e) { toast('error', '❌ ' + e.message); }
+}
+
+// ───── Modal helpers ─────
+function openModal(id)  { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// ───── Toast ─────
+let toastTimer = null;
+function toast(type, msg) {
+  const t = document.getElementById('toast');
+  t.className = 'toast ' + type + ' show';
+  t.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ───── Utils ─────
+function stageLabel(key) {
+  const s = state.config.stages_customer.find(x => x.key === key) ||
+            state.config.stages_product.find(x => x.key === key);
+  return s ? s.label : (key || '');
+}
+
+function waitMinutes(iso) {
+  if (!iso) return 0;
+  return Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+}
+
+function formatWait(min) {
+  if (min < 60) return min + ' นาที';
+  if (min < 60*24) return Math.round(min/60) + ' ชม.';
+  return Math.round(min/60/24) + ' วัน';
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('th-TH', { day:'2-digit', month:'2-digit', year:'2-digit' });
+}
+
+function formatDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('th-TH', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' ' +
+         d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+}
+
+function formatTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso).substring(11,16);
+  return d.toLocaleDateString('th-TH', { day:'2-digit', month:'2-digit' }) + ' ' +
+         d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+}
+</script>
+
+</body>
+</html>
