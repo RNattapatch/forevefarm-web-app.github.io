@@ -354,12 +354,16 @@
     .tag-strip {
       border-bottom: 1px solid var(--border);
       background: rgba(11,15,21,0.6);
-      padding: 0.5rem 1.25rem;
+      display: flex; flex-direction: column;
+    }
+    .tag-row {
       display: flex; align-items: center; gap: 0.35rem;
+      padding: 0.38rem 1.25rem;
       overflow-x: auto; flex-wrap: nowrap;
       scrollbar-width: none; -ms-overflow-style: none;
     }
-    .tag-strip::-webkit-scrollbar { display: none; }
+    .tag-row:not(:last-child) { border-bottom: 1px solid rgba(180,196,211,0.07); }
+    .tag-row::-webkit-scrollbar { display: none; }
     .tag-sect-lbl {
       font-size: 0.57rem; text-transform: uppercase; letter-spacing: 0.1em;
       color: var(--dim); flex-shrink: 0; margin-right: 0.15rem;
@@ -711,8 +715,26 @@ let checkActiveBrand = 'all';
 let CHECK_OPEN      = false;
 let DASH_WAS_OPEN   = false;
 let activeSizeFilter = 'all';
+let activeTypeFilter = 'all';
 
-// ── size + check helpers ─────────────────────────────────────────
+// ── size + type + check helpers ──────────────────────────────────
+function extractType(name) {
+  if (!name) return null;
+  const n = name.toLowerCase();
+  if (/รองเท้า|shoe|pump|heel|sandal|sneaker|loafer|flat|mule|boot|slipper|stiletto|wedge|espadrille|ballet|oxford/.test(n)) return 'รองเท้า';
+  if (/กระเป๋า|bag|tote|clutch|wallet|purse|crossbody|shoulder|pouch|satchel|hobo|baguette|minaudière/.test(n)) return 'กระเป๋า';
+  if (/หมวก|hat|cap|beret|bucket/.test(n)) return 'หมวก';
+  if (/แหวน|\bring\b/.test(n)) return 'แหวน';
+  if (/ต่างหู|earring/.test(n)) return 'ต่างหู';
+  if (/สร้อย|necklace|chain|pendant/.test(n)) return 'สร้อย';
+  if (/กำไร|bracelet|bangle|cuff/.test(n)) return 'กำไร';
+  if (/นาฬิกา|watch/.test(n)) return 'นาฬิกา';
+  if (/ผ้าพัน|ผ้าคลุม|scarf|silk|shawl|stole|twilly/.test(n)) return 'ผ้าพัน';
+  if (/เสื้อ|กางเกง|กระโปรง|ชุด|jacket|coat|blazer|top|shirt|dress|trouser|pant|skirt/.test(n)) return 'เสื้อผ้า';
+  if (/แว่น|sunglass|glasses|eyewear|lunette/.test(n)) return 'แว่น';
+  if (/เข็มขัด|belt/.test(n)) return 'เข็มขัด';
+  return null;
+}
 function extractSize(name) {
   if (!name) return null;
   const cl = name.match(/\b(XXL|XL|XS|[SML]|2XL|3XL)\b/i);
@@ -1073,6 +1095,7 @@ function render() {
   if (loc === 'office') list = list.filter(p => p.offS > 0);
   if (loc === 'stock')  list = list.filter(p => p.stkS > 0);
   if (activeBrand !== 'all') list = list.filter(p => (p.category||'ไม่ระบุ') === activeBrand);
+  if (activeTypeFilter !== 'all') list = list.filter(p => extractType(p.name) === activeTypeFilter);
   if (activeSizeFilter !== 'all') list = list.filter(p => extractSize(p.name) === activeSizeFilter);
   if (q) list = list.filter(p =>
     (p.name||'').toLowerCase().includes(q) ||
@@ -1428,70 +1451,79 @@ function buildTags(bmap) {
   const strip = document.getElementById('tagStrip');
   while (strip.firstChild) strip.removeChild(strip.firstChild);
 
-  const lbl = document.createElement('span');
-  lbl.className = 'tag-sect-lbl';
-  lbl.textContent = 'Brand';
-  strip.appendChild(lbl);
+  // ── Row 1: Type / ชนิดสินค้า ──────────────────────────────────
+  const typemap = {};
+  ALL.forEach(p => { const t = extractType(p.name); if (t) typemap[t]=(typemap[t]||0)+1; });
+  if (Object.keys(typemap).length) {
+    const rowType = el('div','tag-row'); rowType.id='tagRowType';
+    const tlbl = el('span','tag-sect-lbl'); tlbl.textContent='Type'; rowType.appendChild(tlbl);
+    rowType.appendChild(mkTypeTag('all','ทั้งหมด',null));
+    const tdiv = el('div','tag-div'); rowType.appendChild(tdiv);
+    Object.entries(typemap).sort((a,b)=>b[1]-a[1]).forEach(([t,n])=>rowType.appendChild(mkTypeTag(t,t,n)));
+    strip.appendChild(rowType);
+  }
 
-  // "ทั้งหมด" tag
-  strip.appendChild(mkTag('all', 'ทั้งหมด', ALL.length));
+  // ── Row 2: Brand ──────────────────────────────────────────────
+  const rowBrand = el('div','tag-row'); rowBrand.id='tagRowBrand';
+  const blbl = el('span','tag-sect-lbl'); blbl.textContent='Brand'; rowBrand.appendChild(blbl);
+  rowBrand.appendChild(mkTag('all','ทั้งหมด',ALL.length));
+  const bdiv = el('div','tag-div'); rowBrand.appendChild(bdiv);
+  Object.entries(bmap).sort((a,b)=>b[1].n-a[1].n).forEach(([name,data])=>rowBrand.appendChild(mkTag(name,name,data.n)));
+  strip.appendChild(rowBrand);
 
-  const div = document.createElement('div');
-  div.className = 'tag-div';
-  strip.appendChild(div);
-
-  // Individual brand tags sorted by product count desc
-  Object.entries(bmap)
-    .sort((a,b) => b[1].n - a[1].n)
-    .forEach(([name, data]) => strip.appendChild(mkTag(name, name, data.n)));
-
-  // Size section — only show if any products have extractable sizes
-  const sizes = [...new Set(ALL.map(p => extractSize(p.name)).filter(Boolean))].sort();
+  // ── Row 3: Size ── (only if products have parseable sizes) ────
+  const sizes = [...new Set(ALL.map(p=>extractSize(p.name)).filter(Boolean))].sort((a,b)=>{
+    const na=parseFloat(a), nb=parseFloat(b);
+    return (!isNaN(na) && !isNaN(nb)) ? na-nb : a.localeCompare(b);
+  });
   if (sizes.length) {
-    const div2 = el('div','tag-div'); strip.appendChild(div2);
-    const lbl2 = el('span','tag-sect-lbl'); lbl2.textContent='Size'; strip.appendChild(lbl2);
+    const rowSize = el('div','tag-row'); rowSize.id='tagRowSize';
+    const slbl = el('span','tag-sect-lbl'); slbl.textContent='Size'; rowSize.appendChild(slbl);
     const allSz = el('button','btag size-tag'+(activeSizeFilter==='all'?' on':''));
-    const allSzL = el('span'); allSzL.textContent='All size'; allSz.appendChild(allSzL);
+    const asl = el('span'); asl.textContent='All size'; allSz.appendChild(asl);
     allSz.addEventListener('click', ()=>{
       activeSizeFilter='all';
-      document.querySelectorAll('#tagStrip .btag.size-tag').forEach(b=>b.classList.remove('on'));
+      document.querySelectorAll('#tagRowSize .btag').forEach(b=>b.classList.remove('on'));
       allSz.classList.add('on'); render();
     });
-    strip.appendChild(allSz);
+    rowSize.appendChild(allSz);
+    const sdiv = el('div','tag-div'); rowSize.appendChild(sdiv);
     sizes.forEach(s => {
-      const cnt = ALL.filter(p => extractSize(p.name)===s).length;
+      const cnt = ALL.filter(p=>extractSize(p.name)===s).length;
       const b = el('button','btag size-tag'+(activeSizeFilter===s?' on':''));
       const ls = el('span'); ls.textContent=s; b.appendChild(ls);
       const cs = el('span','bc'); cs.textContent=cnt; b.appendChild(cs);
       b.addEventListener('click', ()=>{
         activeSizeFilter=s;
-        document.querySelectorAll('#tagStrip .btag.size-tag').forEach(x=>x.classList.remove('on'));
+        document.querySelectorAll('#tagRowSize .btag').forEach(x=>x.classList.remove('on'));
         b.classList.add('on'); render();
       });
-      strip.appendChild(b);
+      rowSize.appendChild(b);
     });
+    strip.appendChild(rowSize);
   }
 }
 
 function mkTag(val, label, count) {
-  const btn = document.createElement('button');
-  btn.className = 'btag' + (activeBrand === val ? ' on' : '');
+  const btn = el('button','btag'+(activeBrand===val?' on':''));
   btn.dataset.bval = val;
-
-  const lSpan = document.createElement('span');
-  lSpan.textContent = label;
-  const cSpan = document.createElement('span');
-  cSpan.className = 'bc';
-  cSpan.textContent = count;
-
-  btn.appendChild(lSpan);
-  btn.appendChild(cSpan);
+  const ls = el('span'); ls.textContent=label; btn.appendChild(ls);
+  if (count != null) { const cs = el('span','bc'); cs.textContent=count; btn.appendChild(cs); }
   btn.addEventListener('click', () => {
     activeBrand = val;
-    activeSizeFilter = 'all'; // reset size filter when switching brand
-    document.querySelectorAll('#tagStrip .btag').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    render();
+    document.querySelectorAll('#tagRowBrand .btag').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on'); render();
+  });
+  return btn;
+}
+function mkTypeTag(val, label, count) {
+  const btn = el('button','btag'+(activeTypeFilter===val?' on':''));
+  const ls = el('span'); ls.textContent=label; btn.appendChild(ls);
+  if (count != null) { const cs = el('span','bc'); cs.textContent=count; btn.appendChild(cs); }
+  btn.addEventListener('click', () => {
+    activeTypeFilter = val;
+    document.querySelectorAll('#tagRowType .btag').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on'); render();
   });
   return btn;
 }
