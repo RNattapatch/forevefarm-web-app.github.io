@@ -333,6 +333,9 @@
       <div class="field" style="margin:0"><label>📦 Warehouse — Stock</label><input type="text" id="f_wh_stock" class="inp" placeholder="stock (เว้นว่าง=เดียวกัน)"></div>
     </div>
     <p style="font-size:0.65rem;color:var(--dim);margin-top:0.5rem">ถ้ามี warehouse เดียว ปล่อยว่างทั้งสองช่อง — สต็อกจะอยู่ที่ Office</p>
+    <div class="hr"></div>
+    <div class="field" style="margin:0"><label>📋 Transfer Logger — Apps Script URL (ไม่บังคับ)</label><input type="text" id="f_log_url" class="inp" placeholder="https://script.google.com/macros/s/.../exec"></div>
+    <p style="font-size:0.65rem;color:var(--dim);margin-top:0.4rem">วาง URL หลัง deploy Apps Script เพื่อบันทึก log การย้ายสินค้าลง Google Sheet</p>
     <div class="btn-row">
       <button id="btnCancelSetup" class="btn-base btn-ghost">ยกเลิก</button>
       <button id="btnSaveCreds" class="btn-base btn-office" style="flex:2">บันทึก & โหลดสินค้า</button>
@@ -394,6 +397,9 @@
     <p style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.09em;color:var(--dim);margin-bottom:0.4rem">จำนวนที่ย้าย</p>
     <input type="number" id="tfQty" class="qty-inp" min="1" step="1" value="1">
     <p id="tfAvail" style="font-size:0.68rem;color:var(--dim);margin-top:0.4rem"></p>
+    <div class="hr" style="margin:0.9rem 0 0.7rem"></div>
+    <div class="field"><label>👤 ชื่อผู้ย้าย</label><input type="text" id="tfUser" class="inp" placeholder="ชื่อของคุณ" autocomplete="name"></div>
+    <div class="field" style="margin:0"><label>📝 เหตุผลที่ย้าย</label><input type="text" id="tfReason" class="inp" placeholder="เช่น ถ่ายรูป / ลูกค้าทดลอง / คืนของ / จัดเรียงใหม่"></div>
     <div class="btn-row">
       <button id="btnCancelTf" class="btn-base btn-ghost">ยกเลิก</button>
       <button id="btnSubmitTf" class="btn-base btn-office" style="flex:2">ย้าย ↕</button>
@@ -520,6 +526,7 @@ function fillForm() {
   document.getElementById('f_secret').value    = C.apisecret   || '';
   document.getElementById('f_wh_office').value = C.wh_office   || '';
   document.getElementById('f_wh_stock').value  = C.wh_stock    || '';
+  document.getElementById('f_log_url').value   = C.log_url     || '';
 }
 function saveCreds() {
   const v = {
@@ -528,6 +535,7 @@ function saveCreds() {
     apisecret:  document.getElementById('f_secret').value.trim(),
     wh_office:  document.getElementById('f_wh_office').value.trim(),
     wh_stock:   document.getElementById('f_wh_stock').value.trim(),
+    log_url:    document.getElementById('f_log_url').value.trim(),
   };
   if (!v.storename||!v.apikey||!v.apisecret) { toast('กรุณากรอกข้อมูลให้ครบ','w'); return; }
   C = v;
@@ -731,6 +739,8 @@ function openTf(id) {
   document.getElementById('tfOffN').textContent = String(p.offS??0);
   document.getElementById('tfStkN').textContent = String(p.stkS??0);
   document.getElementById('tfQty').value = '1';
+  document.getElementById('tfUser').value   = localStorage.getItem('ff_lastUser') || '';
+  document.getElementById('tfReason').value = '';
   selTfDir('o2s');
   open('dlgTf');
 }
@@ -745,13 +755,15 @@ function selTfDir(dir) {
 }
 async function submitTf() {
   const p = MAP.get(CUR); if (!p) return;
-  const qty = parseInt(document.getElementById('tfQty').value,10);
+  const qty    = parseInt(document.getElementById('tfQty').value,10);
+  const user   = document.getElementById('tfUser').value.trim()   || 'ไม่ระบุ';
+  const reason = document.getElementById('tfReason').value.trim() || '-';
   if (isNaN(qty)||qty<=0) { toast('จำนวนไม่ถูกต้อง','w'); return; }
-  const fromO = TF_DIR==='o2s';
+  const fromO  = TF_DIR==='o2s';
   const srcQty = fromO ? p.offS : p.stkS;
   if (qty > srcQty) { toast(`สต็อกไม่พอ — มีแค่ ${srcQty}`,'w'); return; }
-  const srcWh = fromO ? (C.wh_office||'') : (C.wh_stock||'');
-  const dstWh = fromO ? (C.wh_stock||'')  : (C.wh_office||'');
+  const srcWh  = fromO ? (C.wh_office||'') : (C.wh_stock||'');
+  const dstWh  = fromO ? (C.wh_stock||'')  : (C.wh_office||'');
   const newSrc = srcQty - qty;
   const newDst = (fromO ? p.stkS : p.offS) + qty;
   const btn = document.getElementById('btnSubmitTf');
@@ -760,10 +772,22 @@ async function submitTf() {
     await apiUpdate(srcWh, p.id, newSrc);
     await apiUpdate(dstWh, p.id, newDst);
     if (fromO) { p.offS=newSrc; p.stkS=newDst; } else { p.stkS=newSrc; p.offS=newDst; }
+    localStorage.setItem('ff_lastUser', user);
+    logTransfer({ user, productName: p.name||'-', sku: p.sku||'-', from: fromO?'Office':'Stock', to: fromO?'Stock':'Office', qty, reason });
     render(); updateStats(); close('dlgTf');
     toast(`✓ ย้าย ${qty} ชิ้น ${fromO?'Office→Stock':'Stock→Office'}`,'s');
   } catch(e) { toast(e.message,'e'); }
   finally { setBtn(btn,false,'ย้าย ↕'); }
+}
+
+function logTransfer(data) {
+  if (!C.log_url) return;
+  // fire-and-forget — ไม่บล็อก UI ถ้า log fail
+  fetch(C.log_url, {
+    method: 'POST',
+    body: JSON.stringify({ ...data, timestamp: new Date().toISOString() }),
+    mode: 'no-cors',
+  }).catch(() => {});
 }
 
 // ── API ──────────────────────────────────────────────────────────
