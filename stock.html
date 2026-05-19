@@ -455,11 +455,15 @@
     <div class="field"><label>API Key</label><input type="text" id="f_key" class="inp" placeholder="xxxx-xxxx-xxxx"></div>
     <div class="field"><label>API Secret</label><input type="password" id="f_secret" class="inp" placeholder="••••••••"></div>
     <div class="hr"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
-      <div class="field" style="margin:0"><label>🏢 Office — Warehouse Code</label><input type="text" id="f_wh_office" class="inp" placeholder="W0001"></div>
-      <div class="field" style="margin:0"><label>📦 Stock — Warehouse Code</label><input type="text" id="f_wh_stock" class="inp" placeholder="W0002"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+      <span style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--dim)">Warehouse Codes</span>
+      <button id="btnLoadWh" type="button" class="btn-base btn-ghost" style="padding:0.25rem 0.65rem;font-size:0.68rem">🔄 ดู Warehouse ใน Zort</button>
     </div>
-    <p style="font-size:0.65rem;color:var(--dim);margin-top:0.5rem">Farevefarm: Office = <code style="background:rgba(255,255,255,0.06);padding:0.05rem 0.3rem;border-radius:3px">W0001</code> · Stock = <code style="background:rgba(255,255,255,0.06);padding:0.05rem 0.3rem;border-radius:3px">W0002</code></p>
+    <div id="whList" style="display:none;margin-bottom:0.6rem;border:1px solid var(--border);border-radius:8px;overflow:hidden"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+      <div class="field" style="margin:0"><label>🏢 Office</label><input type="text" id="f_wh_office" class="inp" placeholder="W0001"></div>
+      <div class="field" style="margin:0"><label>📦 Stock</label><input type="text" id="f_wh_stock" class="inp" placeholder="W0002"></div>
+    </div>
     <div class="hr"></div>
     <div class="field" style="margin:0"><label>📋 Transfer Logger — Apps Script URL (ไม่บังคับ)</label><input type="text" id="f_log_url" class="inp" placeholder="https://script.google.com/macros/s/.../exec"></div>
     <p style="font-size:0.65rem;color:var(--dim);margin-top:0.4rem">วาง URL หลัง deploy Apps Script เพื่อบันทึก log การย้ายสินค้าลง Google Sheet</p>
@@ -755,6 +759,45 @@ document.getElementById('btnSetup2').addEventListener('click', () => open('dlgSe
 document.getElementById('btnSetup3').addEventListener('click', () => open('dlgSetup'));
 document.getElementById('btnRefresh').addEventListener('click', load);
 document.getElementById('btnRetry').addEventListener('click',   load);
+
+document.getElementById('btnLoadWh').addEventListener('click', async () => {
+  const storename = document.getElementById('f_store').value.trim();
+  const apikey    = document.getElementById('f_key').value.trim();
+  const apisecret = document.getElementById('f_secret').value.trim();
+  if (!storename||!apikey||!apisecret) { toast('กรอก Store Name / Key / Secret ก่อนครับ','w'); return; }
+  const btn = document.getElementById('btnLoadWh');
+  btn.textContent = '⏳'; btn.disabled = true;
+  try {
+    const r = await fetch(`${API}/v4/Warehouse/GetWarehouses?page=1&limit=50`, {
+      headers: { storename, apikey, apisecret }
+    });
+    const d = await r.json().catch(()=>({}));
+    const list = d.list || [];
+    const div  = document.getElementById('whList');
+    if (!list.length) {
+      div.innerHTML = '<p style="padding:0.6rem 0.75rem;font-size:0.75rem;color:var(--dim)">ไม่พบ Warehouse ในระบบ</p>';
+    } else {
+      div.innerHTML = list.map(w =>
+        `<div class="wh-row" data-code="${w.code}" style="display:flex;align-items:center;justify-content:space-between;padding:0.45rem 0.75rem;border-bottom:1px solid var(--border);cursor:pointer;gap:0.5rem">
+          <span style="font-size:0.78rem">${w.name}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--elevated);background:rgba(180,196,211,0.08);padding:0.15rem 0.5rem;border-radius:4px">${w.code}</span>
+         </div>`
+      ).join('');
+      div.querySelectorAll('.wh-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const code = row.dataset.code;
+          const offInp = document.getElementById('f_wh_office');
+          const stkInp = document.getElementById('f_wh_stock');
+          if (!offInp.value)      { offInp.value = code; toast(`Office = ${code}`,'s'); }
+          else if (!stkInp.value) { stkInp.value = code; toast(`Stock = ${code}`,'s'); }
+          else { toast(`กรอกเองได้เลยครับ — ทั้งสอง field มีค่าแล้ว`,'w'); }
+        });
+      });
+    }
+    div.style.display = 'block';
+  } catch(e) { toast(e.message,'e'); }
+  finally { btn.textContent = '🔄 ดู Warehouse ใน Zort'; btn.disabled = false; }
+});
 document.getElementById('btnCancelAdj').addEventListener('click', () => close('dlgAdj'));
 document.getElementById('btnSubmitAdj').addEventListener('click', submitAdj);
 document.getElementById('btnCancelTf').addEventListener('click',  () => close('dlgTf'));
@@ -1017,6 +1060,10 @@ async function submitAdj() {
   const qty = parseInt(document.getElementById('adjQty').value,10);
   if (isNaN(qty)||qty<0) { toast('จำนวนไม่ถูกต้อง','w'); return; }
   const wh = ADJ_LOC==='office' ? (C.wh_office||'') : (C.wh_stock||'');
+  if (!wh) {
+    toast('ยังไม่ได้ตั้งค่า Warehouse Code — เปิด ⚙ ตั้งค่า','w');
+    close('dlgAdj'); open('dlgSetup'); return;
+  }
   const btn = document.getElementById('btnSubmitAdj');
   setBtn(btn,true,'กำลังบันทึก...');
   try {
@@ -1063,6 +1110,10 @@ async function submitTf() {
   if (qty > srcQty) { toast(`สต็อกไม่พอ — มีแค่ ${srcQty}`,'w'); return; }
   const srcWh  = fromO ? (C.wh_office||'') : (C.wh_stock||'');
   const dstWh  = fromO ? (C.wh_stock||'')  : (C.wh_office||'');
+  if (!srcWh || !dstWh) {
+    toast('ยังไม่ได้ตั้งค่า Warehouse Code — เปิด ⚙ ตั้งค่า แล้วกด 🔄 ดู Warehouse','w');
+    close('dlgTf'); open('dlgSetup'); return;
+  }
   const btn = document.getElementById('btnSubmitTf');
   setBtn(btn,true,'กำลังย้าย...');
   try {
