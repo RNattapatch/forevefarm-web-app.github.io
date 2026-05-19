@@ -484,18 +484,31 @@
     .chk-filter-tab.active { color:var(--elevated); background:rgba(31,49,81,0.45); border-color:rgba(31,49,81,0.7); }
     .chk-filter-tab.stk.active { color:var(--foggy); background:rgba(234,231,223,0.08); border-color:rgba(234,231,223,0.28); }
 
-    /* ── checker: brand/category tag strip ── */
+    /* ── checker: multi-row tag strip ── */
     #checkTagStrip {
       border-bottom:1px solid var(--border);
       background:rgba(11,15,21,0.6);
-      padding:0.4rem 0.75rem;
-      display:none;
-      align-items:center; gap:0.3rem;
-      overflow-x:auto; flex-wrap:nowrap;
-      scrollbar-width:none; -ms-overflow-style:none;
+      display:none; flex-direction:column;
       position:sticky; top:calc(54px + 46px); z-index:28;
     }
-    #checkTagStrip::-webkit-scrollbar { display:none; }
+    .chk-tag-row {
+      display:flex; align-items:center; gap:0.3rem;
+      padding:0.35rem 0.75rem;
+      overflow-x:auto; flex-wrap:nowrap;
+      scrollbar-width:none; -ms-overflow-style:none;
+    }
+    .chk-tag-row:not(:last-child) { border-bottom:1px solid rgba(180,196,211,0.07); }
+    .chk-tag-row::-webkit-scrollbar { display:none; }
+    .chk-status-btn {
+      padding:0.22rem 0.55rem; border-radius:5px; cursor:pointer;
+      font-size:0.62rem; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;
+      border:1px solid var(--border); color:var(--dim); background:transparent;
+      transition:all 0.14s; font-family:'Outfit','Sarabun',sans-serif;
+      -webkit-tap-highlight-color:transparent; white-space:nowrap;
+    }
+    .chk-status-btn:hover { color:var(--text); }
+    .chk-status-btn.on { color:var(--elevated); background:rgba(31,49,81,0.45); border-color:rgba(31,49,81,0.7); }
+    .chk-status-btn.done.on { color:#6ee7b7; background:rgba(16,47,32,0.45); border-color:rgba(52,211,153,0.4); }
 
     /* ── group checker cards ── */
     .gccard {
@@ -748,7 +761,9 @@ let activeBrand = 'all';
 let chartBrands = null, chartSplit = null;
 let CHECKS          = {};     // key: "${loc}-${id}" → ISO timestamp
 let CHECK_FILTER    = 'all';  // 'all' | 'office' | 'stock'
-let checkActiveBrand = 'all';
+let checkActiveBrand  = 'all';
+let checkActiveType   = 'all';
+let checkStatusFilter = 'all';
 let CHECK_OPEN      = false;
 let DASH_WAS_OPEN   = false;
 let activeSizeFilter = 'all';
@@ -824,6 +839,8 @@ function openChecker() {
   document.getElementById('btnCheck').classList.add('active');
   document.querySelectorAll('#locTabs .loc-tab:not(.check-tab)').forEach(t => t.classList.remove('active'));
   checkActiveBrand = 'all';
+  checkActiveType = 'all';
+  checkStatusFilter = 'all';
   buildChecker();
 }
 function closeChecker() {
@@ -847,6 +864,8 @@ function switchCheckFilter(filter) {
     b.classList.toggle('active', b.dataset.chkf === filter);
   });
   checkActiveBrand = 'all';
+  checkActiveType = 'all';
+  checkStatusFilter = 'all';
   buildChecker();
 }
 function mkGroupCard(grp) {
@@ -943,19 +962,35 @@ function buildChecker() {
   if (CHECK_FILTER === 'stock')  list = list.filter(p => p.stkS > 0);
   if (checkActiveBrand !== 'all') list = list.filter(p => (p.category||'ไม่ระบุ') === checkActiveBrand);
 
-  const groups = buildGroups(list);
+  let groups = buildGroups(list);
   const isGroupDone = grp => grp.items.every(p =>
     (!p.offS || !!CHECKS[chkKey(p.id,'office')]) &&
     (!p.stkS || !!CHECKS[chkKey(p.id,'stock')])
   );
+
+  // type filter
+  if (checkActiveType !== 'all')
+    groups = groups.filter(grp => extractType(grp.key) === checkActiveType);
+
+  // status filter (if specific status, no sort needed; if 'all', sort unchecked first)
+  if (checkStatusFilter === 'unchecked') {
+    groups = groups.filter(grp => !isGroupDone(grp));
+  } else if (checkStatusFilter === 'done') {
+    groups = groups.filter(grp => isGroupDone(grp));
+  }
+
   const doneCount = groups.filter(isGroupDone).length;
   document.getElementById('chkProgress').textContent = `✓ ${doneCount} / ${groups.length} กลุ่ม`;
 
   const g = document.getElementById('checkGrid');
   while (g.firstChild) g.removeChild(g.firstChild);
-  const unchecked = groups.filter(grp => !isGroupDone(grp));
-  const checked   = groups.filter(grp =>  isGroupDone(grp));
-  [...unchecked, ...checked].forEach(grp => g.appendChild(mkGroupCard(grp)));
+  if (checkStatusFilter === 'all') {
+    const unchecked = groups.filter(grp => !isGroupDone(grp));
+    const checked   = groups.filter(grp =>  isGroupDone(grp));
+    [...unchecked, ...checked].forEach(grp => g.appendChild(mkGroupCard(grp)));
+  } else {
+    groups.forEach(grp => g.appendChild(mkGroupCard(grp)));
+  }
 }
 function mkCheckCard(p) {
   const offKey  = chkKey(p.id,'office');
@@ -1016,15 +1051,46 @@ function buildCheckerTags() {
   const strip = document.getElementById('checkTagStrip');
   strip.style.display = 'flex';
   while (strip.firstChild) strip.removeChild(strip.firstChild);
+
   let list = ALL;
   if (CHECK_FILTER==='office') list = list.filter(p=>p.offS>0);
   if (CHECK_FILTER==='stock')  list = list.filter(p=>p.stkS>0);
+
+  // ── Row 1: Status filter ───────────────────────────────────────
+  const rowStatus = el('div','chk-tag-row'); rowStatus.id='chkTagRowStatus';
+  const slbl = el('span','tag-sect-lbl'); slbl.textContent='สถานะ'; rowStatus.appendChild(slbl);
+  [['all','ทั้งหมด'],['unchecked','ยังไม่ตรวจ'],['done','ตรวจแล้ว']].forEach(([v,lbl])=>{
+    const btn = el('button','chk-status-btn'+(v==='done'?' done':'')+(checkStatusFilter===v?' on':''));
+    btn.textContent = lbl;
+    btn.addEventListener('click', ()=>{
+      checkStatusFilter = v;
+      document.querySelectorAll('#chkTagRowStatus .chk-status-btn').forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on');
+      buildChecker();
+    });
+    rowStatus.appendChild(btn);
+  });
+  strip.appendChild(rowStatus);
+
+  // ── Row 2: Type filter ─────────────────────────────────────────
+  const typeMap = {};
+  list.forEach(p=>{ const t=extractType(p.name); if(t) typeMap[t]=(typeMap[t]||0)+1; });
+  if (Object.keys(typeMap).length) {
+    const rowType = el('div','chk-tag-row'); rowType.id='chkTagRowType';
+    const tlbl = el('span','tag-sect-lbl'); tlbl.textContent='ชนิด'; rowType.appendChild(tlbl);
+    rowType.appendChild(mkCheckerTypeTag('all','ทั้งหมด',null));
+    Object.entries(typeMap).sort((a,b)=>b[1]-a[1]).forEach(([t,n])=>rowType.appendChild(mkCheckerTypeTag(t,t,n)));
+    strip.appendChild(rowType);
+  }
+
+  // ── Row 3: Brand filter ────────────────────────────────────────
   const bmap = {};
-  list.forEach(p => { const b=p.category||'ไม่ระบุ'; bmap[b]=(bmap[b]||0)+1; });
-  const lbl = el('span','tag-sect-lbl'); lbl.textContent='Brand'; strip.appendChild(lbl);
-  strip.appendChild(mkCheckerTag('all','ทั้งหมด',list.length));
-  const div = el('div','tag-div'); strip.appendChild(div);
-  Object.entries(bmap).sort((a,b)=>b[1]-a[1]).forEach(([name,n])=>strip.appendChild(mkCheckerTag(name,name,n)));
+  list.forEach(p=>{ const b=p.category||'ไม่ระบุ'; bmap[b]=(bmap[b]||0)+1; });
+  const rowBrand = el('div','chk-tag-row'); rowBrand.id='chkTagRowBrand';
+  const blbl = el('span','tag-sect-lbl'); blbl.textContent='Brand'; rowBrand.appendChild(blbl);
+  rowBrand.appendChild(mkCheckerTag('all','ทั้งหมด',list.length));
+  Object.entries(bmap).sort((a,b)=>b[1]-a[1]).forEach(([name,n])=>rowBrand.appendChild(mkCheckerTag(name,name,n)));
+  strip.appendChild(rowBrand);
 }
 function mkCheckerTag(val, label, count) {
   const btn = el('button','btag'+(checkActiveBrand===val?' on':''));
@@ -1032,7 +1098,19 @@ function mkCheckerTag(val, label, count) {
   const cs = el('span','bc'); cs.textContent=count; btn.appendChild(cs);
   btn.addEventListener('click', ()=>{
     checkActiveBrand = val;
-    document.querySelectorAll('#checkTagStrip .btag').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('#chkTagRowBrand .btag').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    buildChecker();
+  });
+  return btn;
+}
+function mkCheckerTypeTag(val, label, count) {
+  const btn = el('button','btag'+(checkActiveType===val?' on':''));
+  const ls = el('span'); ls.textContent=label; btn.appendChild(ls);
+  if (count!=null) { const cs=el('span','bc'); cs.textContent=count; btn.appendChild(cs); }
+  btn.addEventListener('click', ()=>{
+    checkActiveType = val;
+    document.querySelectorAll('#chkTagRowType .btag').forEach(b=>b.classList.remove('on'));
     btn.classList.add('on');
     buildChecker();
   });
