@@ -333,7 +333,7 @@
       border-bottom: 1px solid var(--border);
       padding: 1rem 1.25rem;
     }
-    .kpi-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 0.6rem; margin-bottom: 1rem; }
+    .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.6rem; margin-bottom: 1rem; }
     @media(max-width:700px) { .kpi-row { grid-template-columns: repeat(2,1fr); } }
     .kpi-card {
       background: var(--surface); border: 1px solid var(--border);
@@ -562,6 +562,9 @@
     .btag.pld.on  { background:rgba(167,139,250,0.1);border-color:rgba(167,139,250,0.28);color:#c4b5fd; }
     /* check history count on stock cards */
     .chk-count { font-size:0.56rem;color:rgba(180,196,211,0.55);margin-top:0.1rem; }
+    /* product price + weight */
+    .card-price { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--foggy); letter-spacing:0.01em; margin-top:0.05rem; }
+    .card-weight { font-size:0.57rem; color:var(--dim); margin-top:0.05rem; }
   </style>
 </head>
 <body>
@@ -691,7 +694,6 @@
   <div class="stat"><span class="stat-lbl">สินค้า</span><span class="stat-val" id="stTotal">0</span></div>
   <div class="stat"><span class="stat-lbl">🏢 Office</span><span class="stat-val" id="stOff">0</span></div>
   <div class="stat"><span class="stat-lbl">📦 Stock</span><span class="stat-val" id="stStk">0</span></div>
-  <div class="stat"><span class="stat-lbl">น้อย ≤3</span><span class="stat-val warn" id="stLow">0</span></div>
   <div class="top-bar-sep"></div>
   <button id="btnDash" class="dash-btn on">📊 Dashboard ▲</button>
 </div>
@@ -704,7 +706,6 @@
       <div class="kpi-card"><div class="kpi-v" id="kBrands">0</div><div class="kpi-l">Brands / Category</div></div>
       <div class="kpi-card"><div class="kpi-v" id="kOff">0</div><div class="kpi-l">🏢 Office รวม</div></div>
       <div class="kpi-card"><div class="kpi-v" id="kStk">0</div><div class="kpi-l">📦 Stock รวม</div></div>
-      <div class="kpi-card"><div class="kpi-v warn" id="kLow">0</div><div class="kpi-l">น้อย ≤3 ชิ้น</div></div>
     </div>
     <div class="chart-row">
       <div class="chart-box">
@@ -765,30 +766,38 @@ let activeCondFilter = 'all';
 let HISTORY = {};
 
 const CONDITIONS = [
-  ['BRAND NEW', /\bBRAND\s+NEW\b/i],
-  ['LIKE NEW',  /\bLIKE\s+NEW\b/i],
-  ['NEAR MINT', /\bNEAR\s+MINT\b/i],
-  ['MINT',      /\bMINT\b/i],
-  ['NEW',       /\bNEW\b/i],
-  ['PRELOVED',  /\bPRELOVED\b/i],
-  ['PREOWNED',  /\bPREOWNED\b/i],
-  ['USED',      /\bUSED\b/i],
-  ['มือสอง',    /มือสอง/],
+  ['BRAND NEW',   /\bBRAND\s+NEW\b/i,   '✨'],
+  ['LIKE NEW',    /\bLIKE\s+NEW\b/i,    '✨'],
+  ['NEAR MINT',   /\bNEAR\s+MINT\b/i,   '💎'],
+  ['KEPT UNUSED', /\bKEPT\s+UNUSED\b/i, '📍'],
+  ['MINT',        /\bMINT\b/i,           '💎'],
+  ['NEW',         /\bNEW\b/i,            '✨'],
+  ['PRELOVED',    /\bPRELOVED\b/i,       '🫶'],
+  ['PREOWNED',    /\bPREOWNED\b/i,       '🔄'],
+  ['USED',        /\bUSED\b/i,           '🔄'],
+  ['มือสอง',      /มือสอง/,              '🔄'],
 ];
 function extractCondition(name) {
   if (!name) return null;
   for (const [label, re] of CONDITIONS) if (re.test(name)) return label;
   return null;
 }
+function condEmoji(label) {
+  if (!label) return '';
+  const found = CONDITIONS.find(([l]) => l === label);
+  return found ? found[2] : '';
+}
 function displayName(name) {
   if (!name) return name;
   let n = name;
   for (const [, re] of CONDITIONS) n = n.replace(re, '').trim().replace(/\s{2,}/g, ' ');
+  // Strip orphaned leading emoji/symbols after condition removal
+  n = n.replace(/^[^\p{L}\p{N}]+/u, '').trim();
   return n;
 }
 function condClass(c) {
   if (!c) return '';
-  if (['BRAND NEW','LIKE NEW','NEW'].includes(c)) return 'new';
+  if (['BRAND NEW','LIKE NEW','NEW','KEPT UNUSED'].includes(c)) return 'new';
   if (['USED','มือสอง'].includes(c)) return 'used';
   if (['MINT','NEAR MINT','MINT CONDITION'].includes(c)) return 'mint';
   return 'pld';
@@ -1327,13 +1336,20 @@ function mkCard(p, idx) {
   if (p.category) { const c = el('span','card-cat'); c.textContent = p.category; body.appendChild(c); }
   const nm = el('p','card-name'); nm.textContent = displayName(p.name)||'-'; body.appendChild(nm);
   const pc = extractCondition(p.name);
-  if (pc) { const cb = el('span','cond-badge '+condClass(pc)); cb.textContent = pc; body.appendChild(cb); }
+  if (pc) { const cb = el('span','cond-badge '+condClass(pc)); cb.textContent = condEmoji(pc)+' '+pc; body.appendChild(cb); }
+  const priceVal = p.sellingprice ?? p.price;
+  if (priceVal && parseFloat(priceVal) > 0) {
+    const pr = el('p','card-price'); pr.textContent = '฿'+Number(priceVal).toLocaleString('th-TH'); body.appendChild(pr);
+  }
   if (p.sku) { const sk = el('p','card-sku'); sk.textContent = p.sku; body.appendChild(sk); }
+  if (p.weight && parseFloat(p.weight) > 0) {
+    const wt = el('span','card-weight'); wt.textContent = p.weight+' g'; body.appendChild(wt);
+  }
   // product detail (กล่อง / ถุงผ้า / accessories info from Zort)
   const detailText = p.detail || (Array.isArray(p.tags) && p.tags.length ? p.tags.join(' · ') : null);
   if (detailText) {
     const dt = el('p','card-detail');
-    dt.textContent = detailText.length > 60 ? detailText.slice(0,60)+'…' : detailText;
+    dt.textContent = detailText.length > 80 ? detailText.slice(0,80)+'…' : detailText;
     body.appendChild(dt);
   }
   const sz = extractSize(p.name);
@@ -1383,7 +1399,7 @@ function mkPill(cls, icon, lbl, n) {
   const ic = el('span'); ic.textContent = icon+' ';
   const lb = el('span','pill-lbl'); lb.textContent = lbl;
   left.appendChild(ic); left.appendChild(lb);
-  const nEl = el('span','pill-n'+(n===0?' zero':n<=3?' low':''));
+  const nEl = el('span','pill-n'+(n===0?' zero':''));
   nEl.textContent = String(n);
   pill.appendChild(left); pill.appendChild(nEl);
   return pill;
@@ -1394,7 +1410,6 @@ function updateStats() {
   document.getElementById('stTotal').textContent = String(ALL.length);
   document.getElementById('stOff').textContent   = String(ALL.reduce((s,p)=>s+p.offS,0));
   document.getElementById('stStk').textContent   = String(ALL.reduce((s,p)=>s+p.stkS,0));
-  document.getElementById('stLow').textContent   = String(ALL.filter(p=>(p.offS+p.stkS)<=3).length);
   document.getElementById('statsBar').style.display = 'flex';
 }
 
@@ -1558,7 +1573,6 @@ function buildDashboard() {
   document.getElementById('kBrands').textContent = Object.keys(bmap).length;
   document.getElementById('kOff').textContent    = totOff;
   document.getElementById('kStk').textContent    = totStk;
-  document.getElementById('kLow').textContent    = ALL.filter(p=>(p.offS+p.stkS)<=3).length;
 
   // Charts
   renderBrandChart(sorted);
@@ -1657,7 +1671,7 @@ function buildTags(bmap) {
     Object.entries(condmap).sort((a,b) => b[1]-a[1]).forEach(([c, n]) => {
       const cc  = condClass(c);
       const btn = el('button','btag'+(cc?' '+cc:'')+(activeCondFilter===c?' on':''));
-      const ls = el('span'); ls.textContent = c; btn.appendChild(ls);
+      const ls = el('span'); ls.textContent = condEmoji(c)+' '+c; btn.appendChild(ls);
       const cs = el('span','bc'); cs.textContent = n; btn.appendChild(cs);
       btn.addEventListener('click', () => {
         activeCondFilter = c;

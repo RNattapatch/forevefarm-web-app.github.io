@@ -309,30 +309,38 @@ function buildGroups(list) {
 
 // ── condition extraction ─────────────────────────────────────────
 const CONDITIONS = [
-  ['BRAND NEW', /\bBRAND\s+NEW\b/i],
-  ['LIKE NEW',  /\bLIKE\s+NEW\b/i],
-  ['NEAR MINT', /\bNEAR\s+MINT\b/i],
-  ['MINT',      /\bMINT\b/i],
-  ['NEW',       /\bNEW\b/i],
-  ['PRELOVED',  /\bPRELOVED\b/i],
-  ['PREOWNED',  /\bPREOWNED\b/i],
-  ['USED',      /\bUSED\b/i],
-  ['มือสอง',    /มือสอง/],
+  ['BRAND NEW',   /\bBRAND\s+NEW\b/i,   '✨'],
+  ['LIKE NEW',    /\bLIKE\s+NEW\b/i,    '✨'],
+  ['NEAR MINT',   /\bNEAR\s+MINT\b/i,   '💎'],
+  ['KEPT UNUSED', /\bKEPT\s+UNUSED\b/i, '📍'],
+  ['MINT',        /\bMINT\b/i,           '💎'],
+  ['NEW',         /\bNEW\b/i,            '✨'],
+  ['PRELOVED',    /\bPRELOVED\b/i,       '🫶'],
+  ['PREOWNED',    /\bPREOWNED\b/i,       '🔄'],
+  ['USED',        /\bUSED\b/i,           '🔄'],
+  ['มือสอง',      /มือสอง/,              '🔄'],
 ];
 function extractCondition(name) {
   if (!name) return null;
   for (const [label, re] of CONDITIONS) if (re.test(name)) return label;
   return null;
 }
+function condEmoji(label) {
+  if (!label) return '';
+  const found = CONDITIONS.find(([l]) => l === label);
+  return found ? found[2] : '';
+}
 function displayName(name) {
   if (!name) return name;
   let n = name;
   for (const [, re] of CONDITIONS) n = n.replace(re, '').trim().replace(/\s{2,}/g, ' ');
+  // Strip orphaned leading emoji/symbols after condition removal
+  n = n.replace(/^[^\p{L}\p{N}]+/u, '').trim();
   return n;
 }
 function condClass(c) {
   if (!c) return '';
-  if (['BRAND NEW','LIKE NEW','NEW'].includes(c)) return 'new';
+  if (['BRAND NEW','LIKE NEW','NEW','KEPT UNUSED'].includes(c)) return 'new';
   if (['USED','มือสอง'].includes(c)) return 'used';
   if (['MINT','NEAR MINT','MINT CONDITION'].includes(c)) return 'mint';
   return 'pld';
@@ -378,7 +386,7 @@ function mkGroupCard(grp) {
   const sp = el('span','gcagg-pill stk'); sp.textContent = '📦 ' + grp.stkTotal;
   agg.appendChild(op); agg.appendChild(sp);
   info.appendChild(brandEl); info.appendChild(nm);
-  if (cond) { const cb = el('span','cond-badge '+condClass(cond)); cb.textContent = cond; info.appendChild(cb); }
+  if (cond) { const cb = el('span','cond-badge '+condClass(cond)); cb.textContent = condEmoji(cond)+' '+cond; info.appendChild(cb); }
   info.appendChild(agg);
   header.appendChild(info);
   card.appendChild(header);
@@ -521,7 +529,7 @@ function buildCheckerTags() {
       return btn;
     };
     rowCond.appendChild(mkCondBtn('all','ทั้งหมด',''));
-    Object.entries(condMap).sort((a,b) => b[1]-a[1]).forEach(([c]) => rowCond.appendChild(mkCondBtn(c,c,condClass(c))));
+    Object.entries(condMap).sort((a,b) => b[1]-a[1]).forEach(([c]) => rowCond.appendChild(mkCondBtn(c, condEmoji(c)+' '+c, condClass(c))));
     strip.appendChild(rowCond);
   }
 
