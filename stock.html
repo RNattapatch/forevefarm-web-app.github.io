@@ -734,20 +734,6 @@
 <!-- grid -->
 <div id="grid" class="grid-wrap" style="display:none"></div>
 
-<!-- ══════════════════ CHECKER PANEL ══════════════════ -->
-<div id="checkPanel" style="display:none">
-  <div class="chk-bar">
-    <div id="chkFilterTabs" style="display:flex;gap:0.3rem">
-      <button class="chk-filter-tab active" data-chkf="all">ทั้งหมด</button>
-      <button class="chk-filter-tab" data-chkf="office">🏢</button>
-      <button class="chk-filter-tab stk" data-chkf="stock">📦</button>
-    </div>
-    <span id="chkProgress" class="chk-progress"></span>
-    <button class="btn-base btn-ghost" id="btnClearChecks" style="font-size:0.63rem;padding:0.28rem 0.65rem">เคลียร์ ✕</button>
-  </div>
-  <div id="checkTagStrip"></div>
-  <div id="checkGrid" class="check-grid"></div>
-</div>
 
 <script>
 const API = 'https://open-api.zortout.com';
@@ -759,13 +745,7 @@ let ADJ_LOC = 'office';
 let TF_DIR  = 'o2s';
 let activeBrand = 'all';
 let chartBrands = null, chartSplit = null;
-let CHECKS          = {};     // key: "${loc}-${id}" → ISO timestamp
-let CHECK_FILTER    = 'all';  // 'all' | 'office' | 'stock'
-let checkActiveBrand  = 'all';
-let checkActiveType   = 'all';
-let checkStatusFilter = 'all';
-let CHECK_OPEN      = false;
-let DASH_WAS_OPEN   = false;
+let CHECKS = {};  // key: "${loc}-${id}" → ISO timestamp
 let activeSizeFilter = 'all';
 let activeTypeFilter = 'all';
 
@@ -797,27 +777,7 @@ function extractSize(name) {
   if (sp) return sp[1];
   return null;
 }
-function groupKey(name) {
-  if (!name) return '';
-  return name
-    .replace(/\s*\(\d{1,3}(?:\.\d)?\)\s*$/, '')
-    .replace(/\s*\bSIZE\s+\d{1,3}(?:\.\d)?\s*$/i, '')
-    .replace(/\s*\b(?:EU|UK|US|ไซส์)\s*\d{1,3}(?:\.\d)?\s*$/i, '')
-    .replace(/\s*\b(XXL|XL|XS|[SML]|2XL|3XL)\s*$/i, '')
-    .trim();
-}
-function buildGroups(list) {
-  const map = {};
-  list.forEach(p => {
-    const k = groupKey(p.name);
-    if (!map[k]) map[k] = { key: k, brand: p.category||'ไม่ระบุ', image: '', items: [], offTotal: 0, stkTotal: 0 };
-    map[k].items.push(p);
-    map[k].offTotal += (p.offS || 0);
-    map[k].stkTotal += (p.stkS || 0);
-    if (!map[k].image) map[k].image = p.imagepath || (Array.isArray(p.imageList) && p.imageList[0]) || '';
-  });
-  return Object.values(map);
-}
+
 function fmtChkTs(iso) {
   const d = new Date(iso);
   const p = n => String(n).padStart(2,'0');
@@ -829,45 +789,7 @@ function loadChecks() {
 function saveChecks() { localStorage.setItem('ff_checks', JSON.stringify(CHECKS)); }
 function chkKey(id, loc) { return `${loc}-${String(id)}`; }
 
-// ── checker view ─────────────────────────────────────────────────
-function openChecker() {
-  CHECK_OPEN = true;
-  DASH_WAS_OPEN = document.getElementById('dashPanel').style.display !== 'none';
-  document.getElementById('checkPanel').style.display = 'block';
-  ['grid','statsBar','dashPanel','tagStrip','stLoading','stEmpty','stError','stNoRes']
-    .forEach(id => { const e = document.getElementById(id); if (e) e.style.display='none'; });
-  document.getElementById('btnCheck').classList.add('active');
-  document.querySelectorAll('#locTabs .loc-tab:not(.check-tab)').forEach(t => t.classList.remove('active'));
-  checkActiveBrand = 'all';
-  checkActiveType = 'all';
-  checkStatusFilter = 'all';
-  buildChecker();
-}
-function closeChecker() {
-  CHECK_OPEN = false;
-  document.getElementById('checkPanel').style.display = 'none';
-  document.getElementById('checkTagStrip').style.display = 'none';
-  document.getElementById('btnCheck').classList.remove('active');
-  if (ALL.length) {
-    document.getElementById('statsBar').style.display = 'flex';
-    document.getElementById('tagStrip').style.display = 'flex';
-    if (DASH_WAS_OPEN) document.getElementById('dashPanel').style.display = 'block';
-    render(); show('grid');
-    document.querySelectorAll('#locTabs .loc-tab:not(.check-tab)').forEach(t => {
-      t.classList.toggle('active', t.dataset.loc === 'all');
-    });
-  } else show('stEmpty');
-}
-function switchCheckFilter(filter) {
-  CHECK_FILTER = filter;
-  document.querySelectorAll('#chkFilterTabs .chk-filter-tab').forEach(b => {
-    b.classList.toggle('active', b.dataset.chkf === filter);
-  });
-  checkActiveBrand = 'all';
-  checkActiveType = 'all';
-  checkStatusFilter = 'all';
-  buildChecker();
-}
+// ── (checker moved to checker.html) ─────────────────────────────
 function mkGroupCard(grp) {
   const isItemDone = p =>
     (!p.offS || !!CHECKS[chkKey(p.id,'office')]) &&
@@ -1189,30 +1111,7 @@ document.querySelectorAll('#locTabs .loc-tab').forEach(b => {
 });
 
 document.getElementById('btnCheck').addEventListener('click', () => {
-  if (!ALL.length) { toast('โหลดสินค้าก่อน','w'); return; }
-  if (CHECK_OPEN) closeChecker(); else openChecker();
-});
-document.getElementById('chkFilterTabs').addEventListener('click', e => {
-  const btn = e.target.closest('.chk-filter-tab');
-  if (btn) switchCheckFilter(btn.dataset.chkf);
-});
-document.getElementById('btnClearChecks').addEventListener('click', () => {
-  // clear checks for products visible in current filter
-  let visibleIds;
-  if (CHECK_FILTER === 'all') {
-    visibleIds = null; // clear all
-  } else {
-    const filtered = CHECK_FILTER==='office' ? ALL.filter(p=>p.offS>0) : ALL.filter(p=>p.stkS>0);
-    visibleIds = new Set(filtered.map(p=>String(p.id)));
-  }
-  Object.keys(CHECKS).forEach(k => {
-    if (!visibleIds) { delete CHECKS[k]; return; }
-    const dash = k.indexOf('-');
-    const id = k.slice(dash+1);
-    if (visibleIds.has(id)) delete CHECKS[k];
-  });
-  saveChecks(); buildChecker();
-  toast('เคลียร์การตรวจแล้ว','s');
+  window.location.href = 'checker.html';
 });
 
 document.getElementById('adjBtnOffice').addEventListener('click', () => selAdjLoc('office'));

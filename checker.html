@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAREVEFARM — Checker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Outfit:wght@300;400;500;600&family=Sarabun:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --estate:   #1F3151;
+      --elevated: #B4C4D3;
+      --foggy:    #EAE7DF;
+      --bg:       #0B0F15;
+      --surface:  #131924;
+      --border:   rgba(180,196,211,0.12);
+      --text:     #EAE7DF;
+      --dim:      rgba(234,231,223,0.42);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Outfit','Sarabun',sans-serif; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* dialog */
+    dialog { border: none; background: transparent; padding: 0; max-width: 100vw; max-height: 100vh; }
+    dialog::backdrop { background: rgba(7,10,15,0.82); backdrop-filter: blur(10px); }
+    .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; width: min(28rem,92vw); }
+    .modal-title { font-family: 'Cormorant Garamond',serif; font-size: 1.35rem; font-weight: 300; letter-spacing: 0.06em; color: var(--text); margin-bottom: 1.25rem; }
+
+    /* form */
+    .field { margin-bottom: 0.9rem; }
+    .field label { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); margin-bottom: 0.35rem; }
+    .inp { width: 100%; background: rgba(180,196,211,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.75rem; color: var(--text); font-family: 'Outfit','Sarabun',sans-serif; font-size: 0.82rem; outline: none; transition: border-color 0.15s; }
+    .inp:focus { border-color: rgba(180,196,211,0.35); }
+    .hr { height: 1px; background: var(--border); margin: 1rem 0; }
+
+    /* buttons */
+    .btn-base { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; font-family: 'Outfit','Sarabun',sans-serif; font-size: 0.78rem; font-weight: 500; cursor: pointer; transition: all 0.15s; border: 1px solid; padding: 0.5rem 0.9rem; letter-spacing: 0.02em; }
+    .btn-ghost { background: transparent; border-color: var(--border); color: var(--dim); }
+    .btn-ghost:hover { border-color: rgba(180,196,211,0.3); color: var(--text); background: rgba(180,196,211,0.04); }
+    .btn-office { background: rgba(31,49,81,0.5); border-color: rgba(31,49,81,0.85); color: var(--elevated); }
+    .btn-office:hover { background: var(--estate); color: #fff; }
+    .btn-row { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
+    .btn-row .btn-base { flex: 1; padding: 0.55rem; }
+
+    /* nav */
+    .nav { position: sticky; top: 0; z-index: 40; background: rgba(11,15,21,0.9); backdrop-filter: blur(18px); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.75rem; padding: 0 1.25rem; height: 54px; }
+    .brand { font-family: 'Cormorant Garamond',serif; font-size: 1.2rem; font-weight: 300; letter-spacing: 0.14em; color: var(--elevated); white-space: nowrap; }
+    .brand-sub { font-size: 0.55rem; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-left: 0.4rem; }
+    .nav-right { display: flex; align-items: center; gap: 0.45rem; flex-shrink: 0; margin-left: auto; }
+    .back-link { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; color: var(--dim); text-decoration: none; border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.65rem; transition: all 0.14s; }
+    .back-link:hover { color: var(--text); border-color: rgba(180,196,211,0.3); }
+
+    /* toast */
+    #toasts { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 9999; pointer-events: none; display: flex; flex-direction: column; gap: 0.4rem; align-items: center; }
+    .toast { padding: 0.55rem 1.1rem; border-radius: 8px; font-size: 0.8rem; font-weight: 500; backdrop-filter: blur(12px); border: 1px solid; animation: toastIn 0.25s ease; pointer-events: auto; white-space: nowrap; }
+    .toast.s { background: rgba(74,122,90,0.9); border-color: rgba(74,122,90,0.5); color: #c8e6c9; }
+    .toast.e { background: rgba(139,58,58,0.9); border-color: rgba(139,58,58,0.5); color: #ffcdd2; }
+    .toast.w { background: rgba(184,115,51,0.9); border-color: rgba(184,115,51,0.5); color: #ffe0b2; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(-6px) scale(0.97); } to { opacity: 1; transform: none; } }
+
+    /* loading states */
+    .state-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 55vh; gap: 1rem; text-align: center; padding: 2rem; }
+    .spinner { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--elevated); border-radius: 50%; animation: spin 0.75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .state-center p { font-size: 0.82rem; color: var(--dim); }
+    .state-center .big { font-family: 'Cormorant Garamond',serif; font-size: 3.5rem; font-weight: 300; color: var(--estate); letter-spacing: 0.2em; }
+
+    /* chk-bar */
+    .chk-bar { background: rgba(14,19,28,0.97); border-bottom: 1px solid var(--border); padding: 0.55rem 1rem; display: flex; align-items: center; gap: 0.6rem; position: sticky; top: 54px; z-index: 30; flex-wrap: wrap; }
+    .chk-filter-tab { padding: 0.28rem 0.65rem; border-radius: 5px; font-size: 0.65rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; cursor: pointer; border: 1px solid var(--border); color: var(--dim); background: transparent; transition: all 0.14s; font-family: 'Outfit','Sarabun',sans-serif; }
+    .chk-filter-tab:hover { color: var(--text); }
+    .chk-filter-tab.active { color: var(--elevated); background: rgba(31,49,81,0.45); border-color: rgba(31,49,81,0.7); }
+    .chk-filter-tab.stk.active { color: var(--foggy); background: rgba(234,231,223,0.08); border-color: rgba(234,231,223,0.28); }
+    .chk-progress { font-family: 'DM Mono',monospace; font-size: 0.68rem; color: var(--dim); flex: 1; text-align: right; white-space: nowrap; }
+
+    /* 3-row tag strip */
+    #checkTagStrip { border-bottom: 1px solid var(--border); background: rgba(11,15,21,0.6); display: flex; flex-direction: column; position: sticky; top: calc(54px + 46px); z-index: 28; }
+    .chk-tag-row { display: flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.75rem; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -ms-overflow-style: none; }
+    .chk-tag-row:not(:last-child) { border-bottom: 1px solid rgba(180,196,211,0.07); }
+    .chk-tag-row::-webkit-scrollbar { display: none; }
+    .tag-sect-lbl { font-size: 0.57rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); flex-shrink: 0; margin-right: 0.15rem; }
+    .chk-status-btn { padding: 0.22rem 0.55rem; border-radius: 5px; cursor: pointer; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid var(--border); color: var(--dim); background: transparent; transition: all 0.14s; font-family: 'Outfit','Sarabun',sans-serif; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+    .chk-status-btn:hover { color: var(--text); }
+    .chk-status-btn.on { color: var(--elevated); background: rgba(31,49,81,0.45); border-color: rgba(31,49,81,0.7); }
+    .chk-status-btn.done.on { color: #6ee7b7; background: rgba(16,47,32,0.45); border-color: rgba(52,211,153,0.4); }
+    .btag { flex-shrink: 0; padding: 0.25rem 0.6rem; border-radius: 20px; font-size: 0.68rem; font-weight: 500; white-space: nowrap; border: 1px solid var(--border); background: transparent; color: var(--dim); cursor: pointer; transition: all 0.12s; font-family: 'Outfit','Sarabun',sans-serif; }
+    .btag:hover { border-color: rgba(180,196,211,0.3); color: var(--text); }
+    .btag.on { background: rgba(31,49,81,0.55); border-color: rgba(31,49,81,0.8); color: var(--elevated); }
+    .btag .bc { font-family: 'DM Mono',monospace; font-size: 0.6rem; opacity: 0.55; margin-left: 0.3rem; }
+
+    /* check grid */
+    .check-grid { padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+    /* group checker cards */
+    .gccard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.22s; }
+    .gccard.checked { opacity: 0.45; border-color: rgba(180,196,211,0.18); }
+    .gccard-header { display: flex; align-items: stretch; }
+    .gccard-img { width: 72px; height: 72px; object-fit: cover; flex-shrink: 0; display: block; }
+    .gccard-ph { width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; background: #0d1520; color: rgba(180,196,211,0.12); font-size: 1.6rem; flex-shrink: 0; }
+    .gccard-info { flex: 1; padding: 0.5rem 0.65rem 0.45rem; display: flex; flex-direction: column; gap: 0.18rem; min-width: 0; }
+    .gccard-name { font-size: 0.72rem; font-weight: 500; color: var(--text); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gccard-brand { font-size: 0.52rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); }
+    .gccard-agg { display: flex; gap: 0.35rem; margin-top: 0.15rem; }
+    .gcagg-pill { font-size: 0.65rem; padding: 0.1rem 0.45rem; border-radius: 4px; font-family: 'DM Mono',monospace; font-weight: 500; }
+    .gcagg-pill.off { background: rgba(31,49,81,0.5); border: 1px solid rgba(31,49,81,0.75); color: var(--elevated); }
+    .gcagg-pill.stk { background: rgba(234,231,223,0.06); border: 1px solid rgba(234,231,223,0.18); color: var(--foggy); }
+    .gccard-variants { border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+    .gcvar-row { display: flex; align-items: center; justify-content: space-between; padding: 0.32rem 0.65rem; border-bottom: 1px solid rgba(180,196,211,0.06); }
+    .gcvar-row:last-child { border-bottom: none; }
+    .gcvar-size { font-family: 'DM Mono',monospace; font-size: 0.7rem; color: var(--elevated); min-width: 64px; }
+    .gcvar-btns { display: flex; gap: 0.3rem; }
+    .gccard-footer { padding: 0.3rem 0.65rem; font-size: 0.62rem; color: var(--dim); background: rgba(0,0,0,0.18); border-top: 1px solid var(--border); font-family: 'DM Mono',monospace; letter-spacing: 0.01em; }
+    .gccard-footer.done { color: var(--elevated); }
+
+    /* confirm buttons */
+    .ccard-loc-btn { padding: 0.26rem 0.5rem; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--dim); font-size: 0.62rem; font-weight: 500; cursor: pointer; transition: all 0.15s; text-align: center; font-family: 'Outfit','Sarabun',sans-serif; -webkit-tap-highlight-color: transparent; min-width: 70px; }
+    .ccard-loc-btn:active { opacity: 0.7; }
+    .ccard-loc-btn.conf-off { background: rgba(31,49,81,0.55); border-color: rgba(31,49,81,0.85); color: var(--elevated); }
+    .ccard-loc-btn.conf-stk { background: rgba(234,231,223,0.1); border-color: rgba(234,231,223,0.3); color: var(--foggy); }
+  </style>
+</head>
+<body>
+<div id="toasts"></div>
+
+<!-- SETUP MODAL -->
+<dialog id="dlgSetup">
+  <div class="modal-box" style="width:min(32rem,94vw)">
+    <p class="modal-title">API Credentials</p>
+    <div class="field"><label>Store Name</label><input type="text" id="f_store" class="inp" placeholder="your-store"></div>
+    <div class="field"><label>API Key</label><input type="text" id="f_key" class="inp" placeholder="xxxx-xxxx-xxxx"></div>
+    <div class="field"><label>API Secret</label><input type="password" id="f_secret" class="inp" placeholder="••••••••"></div>
+    <div class="hr"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+      <span style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--dim)">Warehouse Codes</span>
+      <button id="btnLoadWh" type="button" class="btn-base btn-ghost" style="padding:0.25rem 0.65rem;font-size:0.68rem">🔄 ดู Warehouse ใน Zort</button>
+    </div>
+    <div id="whList" style="display:none;margin-bottom:0.6rem;border:1px solid var(--border);border-radius:8px;overflow:hidden"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+      <div class="field" style="margin:0"><label>🏢 Office</label><input type="text" id="f_wh_office" class="inp" placeholder="W0001"></div>
+      <div class="field" style="margin:0"><label>📦 Stock</label><input type="text" id="f_wh_stock" class="inp" placeholder="W0002"></div>
+    </div>
+    <div class="btn-row">
+      <button id="btnCancelSetup" class="btn-base btn-ghost">ยกเลิก</button>
+      <button id="btnSaveCreds" class="btn-base btn-office" style="flex:2">บันทึก & โหลดสินค้า</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- NAV -->
+<nav class="nav">
+  <div style="display:flex;align-items:baseline;flex-shrink:0">
+    <span class="brand">FAREVEFARM</span>
+    <span class="brand-sub">Checker</span>
+  </div>
+  <div class="nav-right">
+    <a href="stock.html" class="back-link">← สต็อก</a>
+    <button id="btnSetup" class="btn-base btn-ghost" style="padding:0.45rem 0.6rem" title="ตั้งค่า">⚙</button>
+    <button id="btnRefresh" class="btn-base btn-office" style="padding:0.45rem 0.7rem">↻</button>
+  </div>
+</nav>
+
+<!-- CHK BAR -->
+<div id="chkBar" class="chk-bar" style="display:none">
+  <div id="chkFilterTabs" style="display:flex;gap:0.3rem">
+    <button class="chk-filter-tab active" data-chkf="all">ทั้งหมด</button>
+    <button class="chk-filter-tab" data-chkf="office">🏢</button>
+    <button class="chk-filter-tab stk" data-chkf="stock">📦</button>
+  </div>
+  <span id="chkProgress" class="chk-progress"></span>
+  <button class="btn-base btn-ghost" id="btnClearChecks" style="font-size:0.63rem;padding:0.28rem 0.65rem">เคลียร์ ✕</button>
+</div>
+
+<!-- TAG STRIP -->
+<div id="checkTagStrip" style="display:none"></div>
+
+<!-- LOADING STATES -->
+<div id="stLoading" class="state-center" style="display:none">
+  <div class="spinner"></div><p id="loadMsg">กำลังโหลดสินค้า...</p>
+</div>
+<div id="stEmpty" class="state-center">
+  <div class="big">FF</div>
+  <p>กรอก Zort API credentials ก่อนเริ่มใช้งาน</p>
+  <button id="btnSetup2" class="btn-base btn-office" style="margin-top:0.25rem;padding:0.6rem 1.5rem">ตั้งค่า API</button>
+</div>
+<div id="stError" class="state-center" style="display:none">
+  <p style="font-size:1.75rem">⚠</p>
+  <p style="font-weight:500" id="errMsg"></p>
+  <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+    <button id="btnSetup3" class="btn-base btn-ghost">แก้ Credentials</button>
+    <button id="btnRetry" class="btn-base btn-office">ลองใหม่</button>
+  </div>
+</div>
+
+<!-- CHECK GRID -->
+<div id="checkGrid" class="check-grid" style="display:none"></div>
+
+<script>
+const API = 'https://open-api.zortout.com';
+let C    = {};
+let ALL  = [];
+let CHECKS          = {};
+let CHECK_FILTER    = 'all';
+let checkActiveBrand  = 'all';
+let checkActiveType   = 'all';
+let checkStatusFilter = 'all';
+
+// ── helpers ──────────────────────────────────────────────────────
+function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
+function openDlg(id)  { document.getElementById(id).showModal(); }
+function closeDlg(id) { document.getElementById(id).close(); }
+function toast(msg, type) {
+  const t = el('div','toast '+(type||'s'));
+  t.textContent = msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+function showState(id) {
+  ['stLoading','stEmpty','stError'].forEach(x => document.getElementById(x).style.display = 'none');
+  document.getElementById('chkBar').style.display        = 'none';
+  document.getElementById('checkGrid').style.display     = 'none';
+  document.getElementById('checkTagStrip').style.display = 'none';
+  document.getElementById(id).style.display = 'flex';
+}
+
+// ── product helpers ──────────────────────────────────────────────
+function extractType(name) {
+  if (!name) return null;
+  const n = name.toLowerCase();
+  if (/รองเท้า|shoe|pump|heel|sandal|sneaker|loafer|flat|mule|boot|slipper|stiletto|wedge|espadrille|ballet|oxford/.test(n)) return 'รองเท้า';
+  if (/กระเป๋า|bag|tote|clutch|wallet|purse|crossbody|shoulder|pouch|satchel|hobo|baguette|minaudière/.test(n)) return 'กระเป๋า';
+  if (/หมวก|hat|cap|beret|bucket/.test(n)) return 'หมวก';
+  if (/แหวน|\bring\b/.test(n)) return 'แหวน';
+  if (/ต่างหู|earring/.test(n)) return 'ต่างหู';
+  if (/สร้อย|necklace|chain|pendant/.test(n)) return 'สร้อย';
+  if (/กำไร|bracelet|bangle|cuff/.test(n)) return 'กำไร';
+  if (/นาฬิกา|watch/.test(n)) return 'นาฬิกา';
+  if (/ผ้าพัน|ผ้าคลุม|scarf|silk|shawl|stole|twilly/.test(n)) return 'ผ้าพัน';
+  if (/เสื้อ|กางเกง|กระโปรง|ชุด|jacket|coat|blazer|top|shirt|dress|trouser|pant|skirt/.test(n)) return 'เสื้อผ้า';
+  if (/แว่น|sunglass|glasses|eyewear|lunette/.test(n)) return 'แว่น';
+  if (/เข็มขัด|belt/.test(n)) return 'เข็มขัด';
+  return null;
+}
+function extractSize(name) {
+  if (!name) return null;
+  const cl = name.match(/\b(XXL|XL|XS|[SML]|2XL|3XL)\b/i);
+  if (cl) return cl[1].toUpperCase();
+  const pp = name.match(/\((\d{1,3}(?:\.\d)?)\)/);
+  if (pp) return pp[1];
+  const sp = name.match(/\b(?:EU|UK|US|SIZE|ไซส์)\s*(\d{1,3}(?:\.\d)?)\b/i);
+  if (sp) return sp[1];
+  return null;
+}
+function groupKey(name) {
+  if (!name) return '';
+  return name
+    .replace(/\s*\(\d{1,3}(?:\.\d)?\)\s*$/, '')
+    .replace(/\s*\bSIZE\s+\d{1,3}(?:\.\d)?\s*$/i, '')
+    .replace(/\s*\b(?:EU|UK|US|ไซส์)\s*\d{1,3}(?:\.\d)?\s*$/i, '')
+    .replace(/\s*\b(XXL|XL|XS|[SML]|2XL|3XL)\s*$/i, '')
+    .trim();
+}
+function buildGroups(list) {
+  const map = {};
+  list.forEach(p => {
+    const k = groupKey(p.name);
+    if (!map[k]) map[k] = { key: k, brand: p.category||'ไม่ระบุ', image: '', items: [], offTotal: 0, stkTotal: 0 };
+    map[k].items.push(p);
+    map[k].offTotal += (p.offS || 0);
+    map[k].stkTotal += (p.stkS || 0);
+    if (!map[k].image) map[k].image = p.imagepath || (Array.isArray(p.imageList) && p.imageList[0]) || '';
+  });
+  return Object.values(map);
+}
+
+// ── checks persistence ───────────────────────────────────────────
+function loadChecks()  { try { CHECKS = JSON.parse(localStorage.getItem('ff_checks')||'{}'); } catch { CHECKS = {}; } }
+function saveChecks()  { localStorage.setItem('ff_checks', JSON.stringify(CHECKS)); }
+function chkKey(id, loc) { return `${loc}-${String(id)}`; }
+
+// ── group card builder ───────────────────────────────────────────
+function mkGroupCard(grp) {
+  const isItemDone = p =>
+    (!p.offS || !!CHECKS[chkKey(p.id,'office')]) &&
+    (!p.stkS || !!CHECKS[chkKey(p.id,'stock')]);
+  const fullyDone    = grp.items.every(isItemDone);
+  const offItems     = grp.items.filter(p => p.offS > 0);
+  const stkItems     = grp.items.filter(p => p.stkS > 0);
+  const offDoneCount = offItems.filter(p => !!CHECKS[chkKey(p.id,'office')]).length;
+  const stkDoneCount = stkItems.filter(p => !!CHECKS[chkKey(p.id,'stock')]).length;
+
+  const card = el('div', 'gccard' + (fullyDone ? ' checked' : ''));
+
+  // header: image + info
+  const header = el('div','gccard-header');
+  if (grp.image && /^https?:\/\//i.test(grp.image)) {
+    const img = el('img','gccard-img');
+    img.src = grp.image; img.alt = grp.key; img.loading = 'lazy';
+    img.addEventListener('error', () => { const ph = el('div','gccard-ph'); ph.textContent = '📦'; img.replaceWith(ph); });
+    header.appendChild(img);
+  } else {
+    const ph = el('div','gccard-ph'); ph.textContent = '📦'; header.appendChild(ph);
+  }
+
+  const info = el('div','gccard-info');
+  const brandEl = el('p','gccard-brand'); brandEl.textContent = grp.brand;
+  const nm      = el('p','gccard-name');  nm.textContent      = grp.key;
+  const agg     = el('div','gccard-agg');
+  const op = el('span','gcagg-pill off'); op.textContent = '🏢 ' + grp.offTotal;
+  const sp = el('span','gcagg-pill stk'); sp.textContent = '📦 ' + grp.stkTotal;
+  agg.appendChild(op); agg.appendChild(sp);
+  info.appendChild(brandEl); info.appendChild(nm); info.appendChild(agg);
+  header.appendChild(info);
+  card.appendChild(header);
+
+  // variant rows sorted by size
+  const sorted = [...grp.items].sort((a, b) => {
+    const sa = parseFloat(extractSize(a.name) || '0');
+    const sb = parseFloat(extractSize(b.name) || '0');
+    return sa - sb;
+  });
+  const varList = el('div','gccard-variants');
+  sorted.forEach(p => {
+    const row = el('div','gcvar-row');
+    const sz = extractSize(p.name);
+    const szLbl = el('span','gcvar-size');
+    szLbl.textContent = sz ? 'SIZE ' + sz : '—';
+    row.appendChild(szLbl);
+
+    const btns = el('div','gcvar-btns');
+    if (p.offS > 0) {
+      const done = !!CHECKS[chkKey(p.id,'office')];
+      const btn  = el('button','ccard-loc-btn' + (done ? ' conf-off' : ''));
+      btn.textContent = done ? '🏢 ✓' : '🏢 ' + p.offS + ' ตรวจ';
+      btn.addEventListener('click', () => {
+        if (CHECKS[chkKey(p.id,'office')]) delete CHECKS[chkKey(p.id,'office')];
+        else CHECKS[chkKey(p.id,'office')] = new Date().toISOString();
+        saveChecks(); buildChecker();
+      });
+      btns.appendChild(btn);
+    }
+    if (p.stkS > 0) {
+      const done = !!CHECKS[chkKey(p.id,'stock')];
+      const btn  = el('button','ccard-loc-btn' + (done ? ' conf-stk' : ''));
+      btn.textContent = done ? '📦 ✓' : '📦 ' + p.stkS + ' ตรวจ';
+      btn.addEventListener('click', () => {
+        if (CHECKS[chkKey(p.id,'stock')]) delete CHECKS[chkKey(p.id,'stock')];
+        else CHECKS[chkKey(p.id,'stock')] = new Date().toISOString();
+        saveChecks(); buildChecker();
+      });
+      btns.appendChild(btn);
+    }
+    row.appendChild(btns);
+    varList.appendChild(row);
+  });
+  card.appendChild(varList);
+
+  // footer progress
+  const footer = el('div','gccard-footer' + (fullyDone ? ' done' : ''));
+  if (fullyDone) {
+    footer.textContent = '✓ ตรวจครบ';
+  } else {
+    const parts = [];
+    if (offItems.length) parts.push('🏢 ' + offDoneCount + '/' + offItems.length);
+    if (stkItems.length) parts.push('📦 ' + stkDoneCount + '/' + stkItems.length);
+    footer.textContent = parts.join('  ·  ');
+  }
+  card.appendChild(footer);
+  return card;
+}
+
+// ── checker builder ──────────────────────────────────────────────
+function buildChecker() {
+  buildCheckerTags();
+  let list = ALL;
+  if (CHECK_FILTER === 'office') list = list.filter(p => p.offS > 0);
+  if (CHECK_FILTER === 'stock')  list = list.filter(p => p.stkS > 0);
+  if (checkActiveBrand !== 'all') list = list.filter(p => (p.category || 'ไม่ระบุ') === checkActiveBrand);
+
+  let groups = buildGroups(list);
+  const isGroupDone = grp => grp.items.every(p =>
+    (!p.offS || !!CHECKS[chkKey(p.id,'office')]) &&
+    (!p.stkS || !!CHECKS[chkKey(p.id,'stock')])
+  );
+
+  if (checkActiveType !== 'all')
+    groups = groups.filter(grp => extractType(grp.key) === checkActiveType);
+  if (checkStatusFilter === 'unchecked') groups = groups.filter(grp => !isGroupDone(grp));
+  else if (checkStatusFilter === 'done') groups = groups.filter(grp =>  isGroupDone(grp));
+
+  const doneCount = groups.filter(isGroupDone).length;
+  document.getElementById('chkProgress').textContent = `✓ ${doneCount} / ${groups.length} กลุ่ม`;
+
+  const g = document.getElementById('checkGrid');
+  while (g.firstChild) g.removeChild(g.firstChild);
+  if (checkStatusFilter === 'all') {
+    const unchecked = groups.filter(grp => !isGroupDone(grp));
+    const checked   = groups.filter(grp =>  isGroupDone(grp));
+    [...unchecked, ...checked].forEach(grp => g.appendChild(mkGroupCard(grp)));
+  } else {
+    groups.forEach(grp => g.appendChild(mkGroupCard(grp)));
+  }
+}
+
+function buildCheckerTags() {
+  const strip = document.getElementById('checkTagStrip');
+  strip.style.display = 'flex';
+  while (strip.firstChild) strip.removeChild(strip.firstChild);
+
+  let list = ALL;
+  if (CHECK_FILTER === 'office') list = list.filter(p => p.offS > 0);
+  if (CHECK_FILTER === 'stock')  list = list.filter(p => p.stkS > 0);
+
+  // Row 1: Status
+  const rowStatus = el('div','chk-tag-row'); rowStatus.id = 'chkTagRowStatus';
+  const slbl = el('span','tag-sect-lbl'); slbl.textContent = 'สถานะ'; rowStatus.appendChild(slbl);
+  [['all','ทั้งหมด'],['unchecked','ยังไม่ตรวจ'],['done','ตรวจแล้ว']].forEach(([v, lbl]) => {
+    const btn = el('button','chk-status-btn' + (v === 'done' ? ' done' : '') + (checkStatusFilter === v ? ' on' : ''));
+    btn.textContent = lbl;
+    btn.addEventListener('click', () => {
+      checkStatusFilter = v;
+      document.querySelectorAll('#chkTagRowStatus .chk-status-btn').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      buildChecker();
+    });
+    rowStatus.appendChild(btn);
+  });
+  strip.appendChild(rowStatus);
+
+  // Row 2: Type
+  const typeMap = {};
+  list.forEach(p => { const t = extractType(p.name); if (t) typeMap[t] = (typeMap[t] || 0) + 1; });
+  if (Object.keys(typeMap).length) {
+    const rowType = el('div','chk-tag-row'); rowType.id = 'chkTagRowType';
+    const tlbl = el('span','tag-sect-lbl'); tlbl.textContent = 'ชนิด'; rowType.appendChild(tlbl);
+    rowType.appendChild(mkTypeTag('all','ทั้งหมด',null));
+    Object.entries(typeMap).sort((a, b) => b[1] - a[1]).forEach(([t, n]) => rowType.appendChild(mkTypeTag(t, t, n)));
+    strip.appendChild(rowType);
+  }
+
+  // Row 3: Brand
+  const bmap = {};
+  list.forEach(p => { const b = p.category || 'ไม่ระบุ'; bmap[b] = (bmap[b] || 0) + 1; });
+  const rowBrand = el('div','chk-tag-row'); rowBrand.id = 'chkTagRowBrand';
+  const blbl = el('span','tag-sect-lbl'); blbl.textContent = 'Brand'; rowBrand.appendChild(blbl);
+  rowBrand.appendChild(mkBrandTag('all','ทั้งหมด',list.length));
+  Object.entries(bmap).sort((a, b) => b[1] - a[1]).forEach(([name, n]) => rowBrand.appendChild(mkBrandTag(name, name, n)));
+  strip.appendChild(rowBrand);
+}
+
+function mkBrandTag(val, label, count) {
+  const btn = el('button','btag' + (checkActiveBrand === val ? ' on' : ''));
+  const ls = el('span'); ls.textContent = label; btn.appendChild(ls);
+  const cs = el('span','bc'); cs.textContent = count; btn.appendChild(cs);
+  btn.addEventListener('click', () => {
+    checkActiveBrand = val;
+    document.querySelectorAll('#chkTagRowBrand .btag').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    buildChecker();
+  });
+  return btn;
+}
+function mkTypeTag(val, label, count) {
+  const btn = el('button','btag' + (checkActiveType === val ? ' on' : ''));
+  const ls = el('span'); ls.textContent = label; btn.appendChild(ls);
+  if (count != null) { const cs = el('span','bc'); cs.textContent = count; btn.appendChild(cs); }
+  btn.addEventListener('click', () => {
+    checkActiveType = val;
+    document.querySelectorAll('#chkTagRowType .btag').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    buildChecker();
+  });
+  return btn;
+}
+
+function switchCheckFilter(filter) {
+  CHECK_FILTER = filter;
+  document.querySelectorAll('#chkFilterTabs .chk-filter-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.chkf === filter);
+  });
+  checkActiveBrand  = 'all';
+  checkActiveType   = 'all';
+  checkStatusFilter = 'all';
+  buildChecker();
+}
+
+// ── credentials ──────────────────────────────────────────────────
+function fillForm() {
+  document.getElementById('f_store').value     = C.storename  || '';
+  document.getElementById('f_key').value       = C.apikey     || '';
+  document.getElementById('f_secret').value    = C.apisecret  || '';
+  document.getElementById('f_wh_office').value = C.wh_office  || '';
+  document.getElementById('f_wh_stock').value  = C.wh_stock   || '';
+}
+function saveCreds() {
+  const v = {
+    storename: document.getElementById('f_store').value.trim(),
+    apikey:    document.getElementById('f_key').value.trim(),
+    apisecret: document.getElementById('f_secret').value.trim(),
+    wh_office: document.getElementById('f_wh_office').value.trim(),
+    wh_stock:  document.getElementById('f_wh_stock').value.trim(),
+  };
+  if (!v.storename || !v.apikey || !v.apisecret) { toast('กรุณากรอกข้อมูลให้ครบ','w'); return; }
+  C = v;
+  try {
+    const existing = JSON.parse(localStorage.getItem('ff_c') || '{}');
+    localStorage.setItem('ff_c', JSON.stringify({ ...existing, ...v }));
+  } catch { localStorage.setItem('ff_c', JSON.stringify(v)); }
+  closeDlg('dlgSetup');
+  load();
+}
+
+// ── API ──────────────────────────────────────────────────────────
+async function fetchAll(h, wh) {
+  let out = [], page = 1;
+  while (true) {
+    const p = new URLSearchParams({ page, limit: 500 });
+    if (wh) p.set('warehousecode', wh);
+    const r = await fetch(`${API}/v4/Product/GetProducts?${p}`, { headers: h });
+    if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(`HTTP ${r.status}: ${t.slice(0,100)}`); }
+    const d = await r.json();
+    if (!d.list?.length) break;
+    out = out.concat(d.list);
+    document.getElementById('loadMsg').textContent = `โหลดแล้ว ${out.length} รายการ...`;
+    if (d.list.length < 500) break;
+    page++;
+  }
+  return out;
+}
+
+async function load() {
+  if (!C.storename) { openDlg('dlgSetup'); return; }
+  showState('stLoading');
+  const h = { storename: C.storename, apikey: C.apikey, apisecret: C.apisecret };
+  try {
+    const [offList, stkList] = await Promise.all([
+      fetchAll(h, C.wh_office || ''),
+      C.wh_stock ? fetchAll(h, C.wh_stock) : Promise.resolve([]),
+    ]);
+    const m = new Map();
+    offList.forEach(p => m.set(String(p.id), { ...p, offS: parseInt(p.stock, 10) || 0, stkS: 0 }));
+    stkList.forEach(p => {
+      const id = String(p.id);
+      if (m.has(id)) m.get(id).stkS = parseInt(p.stock, 10) || 0;
+      else m.set(id, { ...p, offS: 0, stkS: parseInt(p.stock, 10) || 0 });
+    });
+    ALL = Array.from(m.values()).filter(p => (p.offS + p.stkS) > 0);
+    checkActiveBrand = 'all'; checkActiveType = 'all'; checkStatusFilter = 'all';
+    document.getElementById('stLoading').style.display = 'none';
+    document.getElementById('chkBar').style.display    = 'flex';
+    document.getElementById('checkGrid').style.display = 'flex';
+    buildChecker();
+  } catch (e) {
+    console.error(e);
+    document.getElementById('errMsg').textContent = e.message;
+    showState('stError');
+  }
+}
+
+// ── events ───────────────────────────────────────────────────────
+document.getElementById('btnSaveCreds').addEventListener('click', saveCreds);
+document.getElementById('btnCancelSetup').addEventListener('click', () => closeDlg('dlgSetup'));
+document.getElementById('btnSetup').addEventListener('click',  () => openDlg('dlgSetup'));
+document.getElementById('btnSetup2').addEventListener('click', () => openDlg('dlgSetup'));
+document.getElementById('btnSetup3').addEventListener('click', () => openDlg('dlgSetup'));
+document.getElementById('btnRefresh').addEventListener('click', load);
+document.getElementById('btnRetry').addEventListener('click',   load);
+
+document.getElementById('btnLoadWh').addEventListener('click', async () => {
+  const storename = document.getElementById('f_store').value.trim();
+  const apikey    = document.getElementById('f_key').value.trim();
+  const apisecret = document.getElementById('f_secret').value.trim();
+  if (!storename || !apikey || !apisecret) { toast('กรอก Store Name / Key / Secret ก่อนครับ','w'); return; }
+  const btn = document.getElementById('btnLoadWh');
+  btn.textContent = '⏳'; btn.disabled = true;
+  try {
+    const r = await fetch(`${API}/v4/Warehouse/GetWarehouses?page=1&limit=50`, {
+      headers: { storename, apikey, apisecret }
+    });
+    const d    = await r.json().catch(() => ({}));
+    const list = d.list || [];
+    const div  = document.getElementById('whList');
+    while (div.firstChild) div.removeChild(div.firstChild);
+    if (!list.length) {
+      const p = document.createElement('p');
+      p.style.cssText = 'padding:0.6rem 0.75rem;font-size:0.75rem;color:var(--dim)';
+      p.textContent   = 'ไม่พบ Warehouse ในระบบ';
+      div.appendChild(p);
+    } else {
+      list.forEach(w => {
+        const row = document.createElement('div');
+        row.className   = 'wh-row';
+        row.dataset.code = w.code;
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.45rem 0.75rem;border-bottom:1px solid var(--border);cursor:pointer;gap:0.5rem';
+        const nameSpan = document.createElement('span');
+        nameSpan.style.fontSize = '0.78rem';
+        nameSpan.textContent    = w.name;
+        const codeSpan = document.createElement('span');
+        codeSpan.style.cssText  = "font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--elevated);background:rgba(180,196,211,0.08);padding:0.15rem 0.5rem;border-radius:4px";
+        codeSpan.textContent    = w.code;
+        row.appendChild(nameSpan);
+        row.appendChild(codeSpan);
+        row.addEventListener('click', () => {
+          const code   = row.dataset.code;
+          const offInp = document.getElementById('f_wh_office');
+          const stkInp = document.getElementById('f_wh_stock');
+          if (!offInp.value)      { offInp.value = code; toast('Office = ' + code, 's'); }
+          else if (!stkInp.value) { stkInp.value = code; toast('Stock = ' + code, 's'); }
+          else { toast('กรอกเองได้เลยครับ — ทั้งสอง field มีค่าแล้ว','w'); }
+        });
+        div.appendChild(row);
+      });
+    }
+    div.style.display = 'block';
+  } catch (e) { toast(e.message,'e'); }
+  finally { btn.textContent = '🔄 ดู Warehouse ใน Zort'; btn.disabled = false; }
+});
+
+document.getElementById('chkFilterTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.chk-filter-tab');
+  if (btn) switchCheckFilter(btn.dataset.chkf);
+});
+document.getElementById('btnClearChecks').addEventListener('click', () => {
+  let visibleIds = null;
+  if (CHECK_FILTER !== 'all') {
+    const filtered = CHECK_FILTER === 'office' ? ALL.filter(p => p.offS > 0) : ALL.filter(p => p.stkS > 0);
+    visibleIds = new Set(filtered.map(p => String(p.id)));
+  }
+  Object.keys(CHECKS).forEach(k => {
+    if (!visibleIds) { delete CHECKS[k]; return; }
+    const id = k.slice(k.indexOf('-') + 1);
+    if (visibleIds.has(id)) delete CHECKS[k];
+  });
+  saveChecks(); buildChecker();
+  toast('เคลียร์การตรวจแล้ว','s');
+});
+
+// ── init ─────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  loadChecks();
+  const s = localStorage.getItem('ff_c');
+  if (s) { try { C = JSON.parse(s); } catch { C = {}; } fillForm(); }
+  if (C.storename && C.apikey && C.apisecret) { load(); return; }
+  showState('stEmpty');
+});
+</script>
+</body>
+</html>
