@@ -549,6 +549,19 @@
       font-family: 'DM Mono', monospace; letter-spacing: 0.01em;
     }
     .gccard-footer.done { color: var(--elevated); }
+    /* condition badges */
+    .cond-badge { display:inline-flex;align-items:center;font-size:0.5rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.08rem 0.38rem;border-radius:4px; }
+    .cond-badge.new  { background:rgba(74,200,100,0.13);border:1px solid rgba(74,200,100,0.3);color:#6ee7b7; }
+    .cond-badge.used { background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.28);color:#fbbf24; }
+    .cond-badge.mint { background:rgba(56,189,248,0.09);border:1px solid rgba(56,189,248,0.22);color:#7dd3fc; }
+    .cond-badge.pld  { background:rgba(167,139,250,0.09);border:1px solid rgba(167,139,250,0.22);color:#c4b5fd; }
+    /* condition tag filter active states */
+    .btag.new.on  { background:rgba(74,200,100,0.14);border-color:rgba(74,200,100,0.35);color:#6ee7b7; }
+    .btag.used.on { background:rgba(251,191,36,0.11);border-color:rgba(251,191,36,0.32);color:#fbbf24; }
+    .btag.mint.on { background:rgba(56,189,248,0.1);border-color:rgba(56,189,248,0.28);color:#7dd3fc; }
+    .btag.pld.on  { background:rgba(167,139,250,0.1);border-color:rgba(167,139,250,0.28);color:#c4b5fd; }
+    /* check history count on stock cards */
+    .chk-count { font-size:0.56rem;color:rgba(180,196,211,0.55);margin-top:0.1rem; }
   </style>
 </head>
 <body>
@@ -748,6 +761,39 @@ let chartBrands = null, chartSplit = null;
 let CHECKS = {};  // key: "${loc}-${id}" → ISO timestamp
 let activeSizeFilter = 'all';
 let activeTypeFilter = 'all';
+let activeCondFilter = 'all';
+let HISTORY = {};
+
+const CONDITIONS = [
+  ['BRAND NEW', /\bBRAND\s+NEW\b/i],
+  ['LIKE NEW',  /\bLIKE\s+NEW\b/i],
+  ['NEAR MINT', /\bNEAR\s+MINT\b/i],
+  ['MINT',      /\bMINT\b/i],
+  ['NEW',       /\bNEW\b/i],
+  ['PRELOVED',  /\bPRELOVED\b/i],
+  ['PREOWNED',  /\bPREOWNED\b/i],
+  ['USED',      /\bUSED\b/i],
+  ['มือสอง',    /มือสอง/],
+];
+function extractCondition(name) {
+  if (!name) return null;
+  for (const [label, re] of CONDITIONS) if (re.test(name)) return label;
+  return null;
+}
+function displayName(name) {
+  if (!name) return name;
+  let n = name;
+  for (const [, re] of CONDITIONS) n = n.replace(re, '').trim().replace(/\s{2,}/g, ' ');
+  return n;
+}
+function condClass(c) {
+  if (!c) return '';
+  if (['BRAND NEW','LIKE NEW','NEW'].includes(c)) return 'new';
+  if (['USED','มือสอง'].includes(c)) return 'used';
+  if (['MINT','NEAR MINT','MINT CONDITION'].includes(c)) return 'mint';
+  return 'pld';
+}
+function loadHistory() { try { HISTORY = JSON.parse(localStorage.getItem('ff_check_history')||'{}'); } catch { HISTORY = {}; } }
 
 // ── size + type + check helpers ──────────────────────────────────
 function extractType(name) {
@@ -1070,24 +1116,35 @@ document.getElementById('btnLoadWh').addEventListener('click', async () => {
     const d = await r.json().catch(()=>({}));
     const list = d.list || [];
     const div  = document.getElementById('whList');
+    while (div.firstChild) div.removeChild(div.firstChild);
     if (!list.length) {
-      div.innerHTML = '<p style="padding:0.6rem 0.75rem;font-size:0.75rem;color:var(--dim)">ไม่พบ Warehouse ในระบบ</p>';
+      const p = document.createElement('p');
+      p.style.cssText = 'padding:0.6rem 0.75rem;font-size:0.75rem;color:var(--dim)';
+      p.textContent = 'ไม่พบ Warehouse ในระบบ';
+      div.appendChild(p);
     } else {
-      div.innerHTML = list.map(w =>
-        `<div class="wh-row" data-code="${w.code}" style="display:flex;align-items:center;justify-content:space-between;padding:0.45rem 0.75rem;border-bottom:1px solid var(--border);cursor:pointer;gap:0.5rem">
-          <span style="font-size:0.78rem">${w.name}</span>
-          <span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--elevated);background:rgba(180,196,211,0.08);padding:0.15rem 0.5rem;border-radius:4px">${w.code}</span>
-         </div>`
-      ).join('');
-      div.querySelectorAll('.wh-row').forEach(row => {
+      list.forEach(w => {
+        const row = document.createElement('div');
+        row.className    = 'wh-row';
+        row.dataset.code = w.code;
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.45rem 0.75rem;border-bottom:1px solid var(--border);cursor:pointer;gap:0.5rem';
+        const nameSpan = document.createElement('span');
+        nameSpan.style.fontSize = '0.78rem';
+        nameSpan.textContent    = w.name;
+        const codeSpan = document.createElement('span');
+        codeSpan.style.cssText  = "font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--elevated);background:rgba(180,196,211,0.08);padding:0.15rem 0.5rem;border-radius:4px";
+        codeSpan.textContent    = w.code;
+        row.appendChild(nameSpan);
+        row.appendChild(codeSpan);
         row.addEventListener('click', () => {
-          const code = row.dataset.code;
+          const code   = row.dataset.code;
           const offInp = document.getElementById('f_wh_office');
           const stkInp = document.getElementById('f_wh_stock');
-          if (!offInp.value)      { offInp.value = code; toast(`Office = ${code}`,'s'); }
-          else if (!stkInp.value) { stkInp.value = code; toast(`Stock = ${code}`,'s'); }
-          else { toast(`กรอกเองได้เลยครับ — ทั้งสอง field มีค่าแล้ว`,'w'); }
+          if (!offInp.value)      { offInp.value = code; toast('Office = ' + code, 's'); }
+          else if (!stkInp.value) { stkInp.value = code; toast('Stock = ' + code, 's'); }
+          else { toast('กรอกเองได้เลยครับ — ทั้งสอง field มีค่าแล้ว', 'w'); }
         });
+        div.appendChild(row);
       });
     }
     div.style.display = 'block';
@@ -1129,6 +1186,7 @@ document.querySelectorAll('#dlgAdj .quick-btns .card-act').forEach(b => {
 // ── init ─────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   loadChecks();
+  loadHistory();
   const s = localStorage.getItem('ff_c');
   if (s) { try { C = JSON.parse(s); } catch { C={}; } fillForm(); }
   if (C.storename && C.apikey && C.apisecret) { load(); return; }
@@ -1218,6 +1276,7 @@ function render() {
   if (activeBrand !== 'all') list = list.filter(p => (p.category||'ไม่ระบุ') === activeBrand);
   if (activeTypeFilter !== 'all') list = list.filter(p => extractType(p.name) === activeTypeFilter);
   if (activeSizeFilter !== 'all') list = list.filter(p => extractSize(p.name) === activeSizeFilter);
+  if (activeCondFilter !== 'all') list = list.filter(p => extractCondition(p.name) === activeCondFilter);
   if (q) list = list.filter(p =>
     (p.name||'').toLowerCase().includes(q) ||
     (p.sku||'').toLowerCase().includes(q)  ||
@@ -1266,7 +1325,9 @@ function mkCard(p, idx) {
   // body
   const body = el('div','card-body');
   if (p.category) { const c = el('span','card-cat'); c.textContent = p.category; body.appendChild(c); }
-  const nm = el('p','card-name'); nm.textContent = p.name||'-'; body.appendChild(nm);
+  const nm = el('p','card-name'); nm.textContent = displayName(p.name)||'-'; body.appendChild(nm);
+  const pc = extractCondition(p.name);
+  if (pc) { const cb = el('span','cond-badge '+condClass(pc)); cb.textContent = pc; body.appendChild(cb); }
   if (p.sku) { const sk = el('p','card-sku'); sk.textContent = p.sku; body.appendChild(sk); }
   // product detail (กล่อง / ถุงผ้า / accessories info from Zort)
   const detailText = p.detail || (Array.isArray(p.tags) && p.tags.length ? p.tags.join(' · ') : null);
@@ -1301,6 +1362,12 @@ function mkCard(p, idx) {
   if (stkChk) stamps.push(`📦 ${fmtChkTs(stkChk)}`);
   if (stamps.length) {
     const st = el('p','chk-stamp'); st.textContent = '✓ '+stamps.join(' · '); body.appendChild(st);
+  }
+  const offHist   = HISTORY[chkKey(p.id,'office')];
+  const stkHist   = HISTORY[chkKey(p.id,'stock')];
+  const maxRounds = Math.max(offHist?.count||0, stkHist?.count||0);
+  if (maxRounds > 0) {
+    const hc = el('p','chk-count'); hc.textContent = 'ตรวจ ' + maxRounds + ' ครั้ง'; body.appendChild(hc);
   }
 
   card.appendChild(body);
@@ -1571,6 +1638,36 @@ function renderSplitChart(totOff, totStk) {
 function buildTags(bmap) {
   const strip = document.getElementById('tagStrip');
   while (strip.firstChild) strip.removeChild(strip.firstChild);
+
+  // ── Row 0: Condition ─────────────────────────────────────────────
+  const condmap = {};
+  ALL.forEach(p => { const c = extractCondition(p.name); if (c) condmap[c] = (condmap[c]||0)+1; });
+  if (Object.keys(condmap).length) {
+    const rowCond = el('div','tag-row'); rowCond.id = 'tagRowCond';
+    const clbl = el('span','tag-sect-lbl'); clbl.textContent = 'สภาพ'; rowCond.appendChild(clbl);
+    const cdiv = el('div','tag-div'); rowCond.appendChild(cdiv);
+    const allCond = el('button','btag'+(activeCondFilter==='all'?' on':''));
+    const acl = el('span'); acl.textContent = 'ทั้งหมด'; allCond.appendChild(acl);
+    allCond.addEventListener('click', () => {
+      activeCondFilter = 'all';
+      document.querySelectorAll('#tagRowCond .btag').forEach(b => b.classList.remove('on'));
+      allCond.classList.add('on'); render();
+    });
+    rowCond.appendChild(allCond);
+    Object.entries(condmap).sort((a,b) => b[1]-a[1]).forEach(([c, n]) => {
+      const cc  = condClass(c);
+      const btn = el('button','btag'+(cc?' '+cc:'')+(activeCondFilter===c?' on':''));
+      const ls = el('span'); ls.textContent = c; btn.appendChild(ls);
+      const cs = el('span','bc'); cs.textContent = n; btn.appendChild(cs);
+      btn.addEventListener('click', () => {
+        activeCondFilter = c;
+        document.querySelectorAll('#tagRowCond .btag').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on'); render();
+      });
+      rowCond.appendChild(btn);
+    });
+    strip.appendChild(rowCond);
+  }
 
   // ── Row 1: Type / ชนิดสินค้า ──────────────────────────────────
   const typemap = {};

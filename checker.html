@@ -120,6 +120,24 @@
     .ccard-loc-btn:active { opacity: 0.7; }
     .ccard-loc-btn.conf-off { background: rgba(31,49,81,0.55); border-color: rgba(31,49,81,0.85); color: var(--elevated); }
     .ccard-loc-btn.conf-stk { background: rgba(234,231,223,0.1); border-color: rgba(234,231,223,0.3); color: var(--foggy); }
+    /* condition badges */
+    .cond-badge { display:inline-flex;align-items:center;font-size:0.5rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.08rem 0.38rem;border-radius:4px;flex-shrink:0; }
+    .cond-badge.new  { background:rgba(74,200,100,0.13);border:1px solid rgba(74,200,100,0.3);color:#6ee7b7; }
+    .cond-badge.used { background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.28);color:#fbbf24; }
+    .cond-badge.mint { background:rgba(56,189,248,0.09);border:1px solid rgba(56,189,248,0.22);color:#7dd3fc; }
+    .cond-badge.pld  { background:rgba(167,139,250,0.09);border:1px solid rgba(167,139,250,0.22);color:#c4b5fd; }
+    /* condition filter buttons */
+    .chk-cond-btn { padding:0.22rem 0.55rem;border-radius:5px;cursor:pointer;font-size:0.62rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;border:1px solid var(--border);color:var(--dim);background:transparent;transition:all 0.14s;font-family:'Outfit','Sarabun',sans-serif;-webkit-tap-highlight-color:transparent;white-space:nowrap; }
+    .chk-cond-btn:hover { color:var(--text); }
+    .chk-cond-btn.on      { color:var(--elevated);background:rgba(31,49,81,0.45);border-color:rgba(31,49,81,0.7); }
+    .chk-cond-btn.new.on  { color:#6ee7b7;background:rgba(74,200,100,0.15);border-color:rgba(74,200,100,0.35); }
+    .chk-cond-btn.used.on { color:#fbbf24;background:rgba(251,191,36,0.12);border-color:rgba(251,191,36,0.32); }
+    .chk-cond-btn.mint.on { color:#7dd3fc;background:rgba(56,189,248,0.1);border-color:rgba(56,189,248,0.28); }
+    .chk-cond-btn.pld.on  { color:#c4b5fd;background:rgba(167,139,250,0.1);border-color:rgba(167,139,250,0.28); }
+    /* history count in variant rows */
+    .chk-hist { font-size:0.54rem;color:rgba(180,196,211,0.5);font-family:'DM Mono',monospace; }
+    /* clear dialog */
+    .dlg-msg  { font-size:0.82rem;color:var(--dim);margin-bottom:1.1rem;line-height:1.5; }
   </style>
 </head>
 <body>
@@ -197,6 +215,18 @@
 <!-- CHECK GRID -->
 <div id="checkGrid" class="check-grid" style="display:none"></div>
 
+<!-- CLEAR CONFIRM DIALOG -->
+<dialog id="dlgClear">
+  <div class="modal-box" style="width:min(22rem,90vw)">
+    <p class="modal-title">ล้างการตรวจ</p>
+    <p id="dlgClearMsg" class="dlg-msg"></p>
+    <div class="btn-row">
+      <button id="btnClearCancel" class="btn-base btn-ghost">ยกเลิก</button>
+      <button id="btnClearConfirm" class="btn-base btn-office" style="flex:2;background:rgba(139,58,58,0.35);border-color:rgba(200,80,80,0.55)">ล้างการตรวจ</button>
+    </div>
+  </div>
+</dialog>
+
 <script>
 const API = 'https://open-api.zortout.com';
 let C    = {};
@@ -206,6 +236,8 @@ let CHECK_FILTER    = 'all';
 let checkActiveBrand  = 'all';
 let checkActiveType   = 'all';
 let checkStatusFilter = 'all';
+let activeCondFilter  = 'all';
+let HISTORY = {};
 
 // ── helpers ──────────────────────────────────────────────────────
 function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
@@ -275,9 +307,42 @@ function buildGroups(list) {
   return Object.values(map);
 }
 
+// ── condition extraction ─────────────────────────────────────────
+const CONDITIONS = [
+  ['BRAND NEW', /\bBRAND\s+NEW\b/i],
+  ['LIKE NEW',  /\bLIKE\s+NEW\b/i],
+  ['NEAR MINT', /\bNEAR\s+MINT\b/i],
+  ['MINT',      /\bMINT\b/i],
+  ['NEW',       /\bNEW\b/i],
+  ['PRELOVED',  /\bPRELOVED\b/i],
+  ['PREOWNED',  /\bPREOWNED\b/i],
+  ['USED',      /\bUSED\b/i],
+  ['มือสอง',    /มือสอง/],
+];
+function extractCondition(name) {
+  if (!name) return null;
+  for (const [label, re] of CONDITIONS) if (re.test(name)) return label;
+  return null;
+}
+function displayName(name) {
+  if (!name) return name;
+  let n = name;
+  for (const [, re] of CONDITIONS) n = n.replace(re, '').trim().replace(/\s{2,}/g, ' ');
+  return n;
+}
+function condClass(c) {
+  if (!c) return '';
+  if (['BRAND NEW','LIKE NEW','NEW'].includes(c)) return 'new';
+  if (['USED','มือสอง'].includes(c)) return 'used';
+  if (['MINT','NEAR MINT','MINT CONDITION'].includes(c)) return 'mint';
+  return 'pld';
+}
+
 // ── checks persistence ───────────────────────────────────────────
 function loadChecks()  { try { CHECKS = JSON.parse(localStorage.getItem('ff_checks')||'{}'); } catch { CHECKS = {}; } }
 function saveChecks()  { localStorage.setItem('ff_checks', JSON.stringify(CHECKS)); }
+function loadHistory() { try { HISTORY = JSON.parse(localStorage.getItem('ff_check_history')||'{}'); } catch { HISTORY = {}; } }
+function saveHistory() { localStorage.setItem('ff_check_history', JSON.stringify(HISTORY)); }
 function chkKey(id, loc) { return `${loc}-${String(id)}`; }
 
 // ── group card builder ───────────────────────────────────────────
@@ -306,12 +371,15 @@ function mkGroupCard(grp) {
 
   const info = el('div','gccard-info');
   const brandEl = el('p','gccard-brand'); brandEl.textContent = grp.brand;
-  const nm      = el('p','gccard-name');  nm.textContent      = grp.key;
+  const nm      = el('p','gccard-name');  nm.textContent      = displayName(grp.key);
+  const cond    = extractCondition(grp.key);
   const agg     = el('div','gccard-agg');
   const op = el('span','gcagg-pill off'); op.textContent = '🏢 ' + grp.offTotal;
   const sp = el('span','gcagg-pill stk'); sp.textContent = '📦 ' + grp.stkTotal;
   agg.appendChild(op); agg.appendChild(sp);
-  info.appendChild(brandEl); info.appendChild(nm); info.appendChild(agg);
+  info.appendChild(brandEl); info.appendChild(nm);
+  if (cond) { const cb = el('span','cond-badge '+condClass(cond)); cb.textContent = cond; info.appendChild(cb); }
+  info.appendChild(agg);
   header.appendChild(info);
   card.appendChild(header);
 
@@ -325,8 +393,12 @@ function mkGroupCard(grp) {
   sorted.forEach(p => {
     const row = el('div','gcvar-row');
     const sz = extractSize(p.name);
+    const offH  = HISTORY[chkKey(p.id,'office')];
+    const stkH  = HISTORY[chkKey(p.id,'stock')];
+    const maxH  = Math.max(offH?.count||0, stkH?.count||0);
     const szLbl = el('span','gcvar-size');
     szLbl.textContent = sz ? 'SIZE ' + sz : '—';
+    if (maxH > 0) { const hb = el('span','chk-hist'); hb.textContent = ' ×' + maxH; szLbl.appendChild(hb); }
     row.appendChild(szLbl);
 
     const btns = el('div','gcvar-btns');
@@ -335,8 +407,16 @@ function mkGroupCard(grp) {
       const btn  = el('button','ccard-loc-btn' + (done ? ' conf-off' : ''));
       btn.textContent = done ? '🏢 ✓' : '🏢 ' + p.offS + ' ตรวจ';
       btn.addEventListener('click', () => {
-        if (CHECKS[chkKey(p.id,'office')]) delete CHECKS[chkKey(p.id,'office')];
-        else CHECKS[chkKey(p.id,'office')] = new Date().toISOString();
+        const k = chkKey(p.id,'office');
+        if (CHECKS[k]) {
+          delete CHECKS[k];
+        } else {
+          CHECKS[k] = new Date().toISOString();
+          if (!HISTORY[k]) HISTORY[k] = { count: 0, lastTs: '' };
+          HISTORY[k].count++;
+          HISTORY[k].lastTs = CHECKS[k];
+          saveHistory();
+        }
         saveChecks(); buildChecker();
       });
       btns.appendChild(btn);
@@ -346,8 +426,16 @@ function mkGroupCard(grp) {
       const btn  = el('button','ccard-loc-btn' + (done ? ' conf-stk' : ''));
       btn.textContent = done ? '📦 ✓' : '📦 ' + p.stkS + ' ตรวจ';
       btn.addEventListener('click', () => {
-        if (CHECKS[chkKey(p.id,'stock')]) delete CHECKS[chkKey(p.id,'stock')];
-        else CHECKS[chkKey(p.id,'stock')] = new Date().toISOString();
+        const k = chkKey(p.id,'stock');
+        if (CHECKS[k]) {
+          delete CHECKS[k];
+        } else {
+          CHECKS[k] = new Date().toISOString();
+          if (!HISTORY[k]) HISTORY[k] = { count: 0, lastTs: '' };
+          HISTORY[k].count++;
+          HISTORY[k].lastTs = CHECKS[k];
+          saveHistory();
+        }
         saveChecks(); buildChecker();
       });
       btns.appendChild(btn);
@@ -387,6 +475,8 @@ function buildChecker() {
 
   if (checkActiveType !== 'all')
     groups = groups.filter(grp => extractType(grp.key) === checkActiveType);
+  if (activeCondFilter !== 'all')
+    groups = groups.filter(grp => extractCondition(grp.key) === activeCondFilter);
   if (checkStatusFilter === 'unchecked') groups = groups.filter(grp => !isGroupDone(grp));
   else if (checkStatusFilter === 'done') groups = groups.filter(grp =>  isGroupDone(grp));
 
@@ -412,6 +502,28 @@ function buildCheckerTags() {
   let list = ALL;
   if (CHECK_FILTER === 'office') list = list.filter(p => p.offS > 0);
   if (CHECK_FILTER === 'stock')  list = list.filter(p => p.stkS > 0);
+
+  // Row 0: Condition filter
+  const condMap = {};
+  list.forEach(p => { const c = extractCondition(p.name); if (c) condMap[c] = (condMap[c]||0)+1; });
+  if (Object.keys(condMap).length) {
+    const rowCond = el('div','chk-tag-row'); rowCond.id = 'chkTagRowCond';
+    const clbl = el('span','tag-sect-lbl'); clbl.textContent = 'สภาพ'; rowCond.appendChild(clbl);
+    const mkCondBtn = (val, label, cc) => {
+      const btn = el('button','chk-cond-btn'+(cc?' '+cc:'')+(activeCondFilter===val?' on':''));
+      btn.textContent = label;
+      btn.addEventListener('click', () => {
+        activeCondFilter = val;
+        document.querySelectorAll('#chkTagRowCond .chk-cond-btn').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        buildChecker();
+      });
+      return btn;
+    };
+    rowCond.appendChild(mkCondBtn('all','ทั้งหมด',''));
+    Object.entries(condMap).sort((a,b) => b[1]-a[1]).forEach(([c]) => rowCond.appendChild(mkCondBtn(c,c,condClass(c))));
+    strip.appendChild(rowCond);
+  }
 
   // Row 1: Status
   const rowStatus = el('div','chk-tag-row'); rowStatus.id = 'chkTagRowStatus';
@@ -483,6 +595,7 @@ function switchCheckFilter(filter) {
   checkActiveBrand  = 'all';
   checkActiveType   = 'all';
   checkStatusFilter = 'all';
+  activeCondFilter  = 'all';
   buildChecker();
 }
 
@@ -622,24 +735,55 @@ document.getElementById('chkFilterTabs').addEventListener('click', e => {
   const btn = e.target.closest('.chk-filter-tab');
   if (btn) switchCheckFilter(btn.dataset.chkf);
 });
-document.getElementById('btnClearChecks').addEventListener('click', () => {
-  let visibleIds = null;
-  if (CHECK_FILTER !== 'all') {
-    const filtered = CHECK_FILTER === 'office' ? ALL.filter(p => p.offS > 0) : ALL.filter(p => p.stkS > 0);
-    visibleIds = new Set(filtered.map(p => String(p.id)));
+function archiveAndClear() {
+  if (C.log_url && Object.keys(CHECKS).length > 0) {
+    const sessionId = 'sess-' + Date.now();
+    const items = Object.entries(CHECKS).map(([key, ts]) => {
+      const dashIdx = key.indexOf('-');
+      const loc     = key.slice(0, dashIdx);
+      const id      = key.slice(dashIdx + 1);
+      const p       = ALL.find(x => String(x.id) === id);
+      const hk      = HISTORY[key];
+      return {
+        sessionId,
+        timestamp:   ts,
+        productName: p ? displayName(p.name) : id,
+        sku:         p?.sku || '',
+        location:    loc === 'office' ? 'Office' : 'Stock',
+        checkCount:  hk?.count || 1,
+      };
+    });
+    fetch(C.log_url, {
+      method: 'POST',
+      body:   JSON.stringify({ type: 'check_log', items }),
+      mode:   'no-cors',
+    }).catch(() => {});
   }
-  Object.keys(CHECKS).forEach(k => {
-    if (!visibleIds) { delete CHECKS[k]; return; }
-    const id = k.slice(k.indexOf('-') + 1);
-    if (visibleIds.has(id)) delete CHECKS[k];
-  });
-  saveChecks(); buildChecker();
-  toast('เคลียร์การตรวจแล้ว','s');
+  CHECKS = {};
+  saveChecks();
+  buildChecker();
+  toast('เคลียร์แล้ว — ประวัติยังอยู่ ✓', 's');
+}
+
+document.getElementById('btnClearChecks').addEventListener('click', () => {
+  const count = Object.keys(CHECKS).length;
+  if (count === 0) { toast('ไม่มีรายการที่ตรวจแล้ว', 'w'); return; }
+  const msgEl = document.getElementById('dlgClearMsg');
+  msgEl.textContent = 'มี ' + count + ' รายการที่ตรวจแล้ว — ประวัติรอบนี้จะถูกบันทึกไว้ใน history';
+  document.getElementById('dlgClear').showModal();
+});
+document.getElementById('btnClearCancel').addEventListener('click', () => {
+  document.getElementById('dlgClear').close();
+});
+document.getElementById('btnClearConfirm').addEventListener('click', () => {
+  document.getElementById('dlgClear').close();
+  archiveAndClear();
 });
 
 // ── init ─────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   loadChecks();
+  loadHistory();
   const s = localStorage.getItem('ff_c');
   if (s) { try { C = JSON.parse(s); } catch { C = {}; } fillForm(); }
   if (C.storename && C.apikey && C.apisecret) { load(); return; }
