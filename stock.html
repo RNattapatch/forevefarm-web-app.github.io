@@ -1340,9 +1340,15 @@ function mkCard(p, idx) {
   if (p.weight && parseFloat(p.weight) > 0) {
     const wt = el('span','card-weight'); wt.textContent = p.weight+' g'; body.appendChild(wt);
   }
-  const detailText = p.detail || (Array.isArray(p.tags) && p.tags.length ? p.tags.join(' · ') : null);
+  if (p.width && p.length && p.height) {
+    const dim = el('span','card-weight'); dim.textContent = p.width+'×'+p.length+'×'+p.height+' cm'; body.appendChild(dim);
+  }
+  const detailText = p.description || (Array.isArray(p.tag) && p.tag.length ? p.tag.join(' · ') : null);
   if (detailText) {
     const dt = el('p','card-detail'); dt.textContent = detailText; body.appendChild(dt);
+  }
+  if (Array.isArray(p.properties) && p.properties.length) {
+    const pr = el('p','card-detail'); pr.textContent = p.properties.map(x=>x.name+': '+x.value).join(' · '); body.appendChild(pr);
   }
   const sz = extractSize(p.name);
   if (sz) { const sc = el('span','size-chip'); sc.textContent = 'SIZE '+sz; body.appendChild(sc); }
