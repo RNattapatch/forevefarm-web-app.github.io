@@ -1063,14 +1063,12 @@ async function submitTf() {
   if (qty > srcQty) { toast(`สต็อกไม่พอ — มีแค่ ${srcQty}`,'w'); return; }
   const srcWh  = fromO ? (C.wh_office||'') : (C.wh_stock||'');
   const dstWh  = fromO ? (C.wh_stock||'')  : (C.wh_office||'');
-  const newSrc = srcQty - qty;
-  const newDst = (fromO ? p.stkS : p.offS) + qty;
   const btn = document.getElementById('btnSubmitTf');
   setBtn(btn,true,'กำลังย้าย...');
   try {
-    await apiUpdate(srcWh, p.id, newSrc);
-    await apiUpdate(dstWh, p.id, newDst);
-    if (fromO) { p.offS=newSrc; p.stkS=newDst; } else { p.stkS=newSrc; p.offS=newDst; }
+    await apiDecrease(srcWh, p.id, qty);
+    await apiIncrease(dstWh, p.id, qty);
+    if (fromO) { p.offS -= qty; p.stkS += qty; } else { p.stkS -= qty; p.offS += qty; }
     localStorage.setItem('ff_lastUser', user);
     logTransfer({ user, productName: p.name||'-', sku: p.sku||'-', from: fromO?'Office':'Stock', to: fromO?'Stock':'Office', qty, reason });
     render(); updateStats(); close('dlgTf');
@@ -1090,19 +1088,37 @@ function logTransfer(data) {
 }
 
 // ── API ──────────────────────────────────────────────────────────
-async function apiUpdate(wh, productId, stock) {
-  // warehousecode = query param; body uses "stocks" array (not "list")
+async function checkZortRes(r) {
+  const d = await r.json().catch(()=>({}));
+  // Zort v4 returns resCode (String "200") and resDesc
+  const code = String(d.resCode ?? d.responsecode ?? (r.ok ? '200' : r.status));
+  const desc = d.resDesc ?? d.responsedescription ?? d.message;
+  if (code !== '200') throw new Error(desc || `Zort error ${code}`);
+  const upd = d.detail?.stockupdate;
+  if (upd?.fail > 0) throw new Error(`Zort ไม่อัปเดต (fail=${upd.fail})`);
+}
+
+async function apiStockCall(endpoint, wh, productId, qty) {
   const qs = wh ? `?warehousecode=${encodeURIComponent(wh)}` : '';
-  const r = await fetch(`${API}/v4/Product/UpdateProductStockList${qs}`, {
+  const r = await fetch(`${API}/v4/Product/${endpoint}${qs}`, {
     method: 'POST',
     headers: { storename:C.storename, apikey:C.apikey, apisecret:C.apisecret, 'Content-Type':'application/json' },
-    body: JSON.stringify({ stocks: [{ productid: productId, stock }] }),
+    body: JSON.stringify({ stocks: [{ productid: productId, stock: parseFloat(qty) }] }),
   });
-  const d = await r.json().catch(()=>({}));
-  if (d.responsecode !== undefined && d.responsecode !== 0)
-    throw new Error(d.responsedescription || d.message || `Zort error ${d.responsecode}`);
-  if (!r.ok)
-    throw new Error(`HTTP ${r.status}`);
+  await checkZortRes(r);
+}
+
+// set absolute value (for Adjust)
+async function apiUpdate(wh, productId, stock) {
+  await apiStockCall('UpdateProductStockList', wh, productId, stock);
+}
+// add delta (for Transfer destination)
+async function apiIncrease(wh, productId, qty) {
+  await apiStockCall('IncreaseProductStockList', wh, productId, qty);
+}
+// subtract delta (for Transfer source)
+async function apiDecrease(wh, productId, qty) {
+  await apiStockCall('DecreaseProductStockList', wh, productId, qty);
 }
 
 // ── dashboard ────────────────────────────────────────────────────
