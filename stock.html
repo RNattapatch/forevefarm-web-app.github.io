@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forevefarm — Stock Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5/dist/full.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <style>
+    body { font-family: 'Sarabun', sans-serif; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  </style>
+</head>
+<body class="bg-base-200 min-h-screen">
+
+  <!-- Setup Modal -->
+  <dialog id="setupModal" class="modal">
+    <div class="modal-box max-w-md">
+      <h3 class="font-bold text-lg mb-1">ตั้งค่า Zort API</h3>
+      <p class="text-sm opacity-60 mb-4">ข้อมูลถูกเก็บไว้ใน browser เท่านั้น</p>
+      <div class="flex flex-col gap-3">
+        <label class="form-control">
+          <span class="label-text mb-1">Store Name</span>
+          <input type="text" id="storename" placeholder="your-store-name" class="input input-bordered">
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">API Key</span>
+          <input type="text" id="apikey" placeholder="xxxx-xxxx-xxxx" class="input input-bordered">
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">API Secret</span>
+          <input type="password" id="apisecret" placeholder="••••••••" class="input input-bordered">
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">Warehouse Code <span class="opacity-50">(เว้นว่างถ้าใช้ default)</span></span>
+          <input type="text" id="warehousecode" placeholder="ปล่อยว่างได้" class="input input-bordered">
+        </label>
+      </div>
+      <div class="modal-action">
+        <button id="cancelSetupBtn" class="btn btn-ghost">ยกเลิก</button>
+        <button id="saveCredsBtn" class="btn btn-primary">บันทึก & โหลดสินค้า</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Adjust Stock Modal -->
+  <dialog id="adjustModal" class="modal">
+    <div class="modal-box max-w-sm">
+      <div class="flex items-center gap-3 mb-4">
+        <div id="adjImgWrapper" class="w-16 h-16 rounded-xl overflow-hidden bg-base-200 flex items-center justify-center text-3xl shrink-0">
+          📦
+        </div>
+        <div class="min-w-0">
+          <p id="adjProductName" class="font-bold text-sm leading-snug"></p>
+          <p class="text-xs opacity-50 mt-0.5" id="adjProductSku"></p>
+        </div>
+      </div>
+
+      <div class="bg-base-200 rounded-xl p-4 mb-4 text-center">
+        <p class="text-xs opacity-60 mb-1">สต็อกปัจจุบัน</p>
+        <p class="text-5xl font-bold" id="adjCurrentStock">0</p>
+      </div>
+
+      <label class="form-control mb-3">
+        <span class="label-text mb-1">ตั้งค่าสต็อกใหม่เป็น</span>
+        <input type="number" id="adjNewStock" class="input input-bordered input-lg text-center text-2xl font-bold" min="0" step="1">
+      </label>
+
+      <div class="flex gap-2 mb-3">
+        <button data-delta="-10" class="quick-btn btn btn-sm flex-1 btn-ghost">-10</button>
+        <button data-delta="-1" class="quick-btn btn btn-sm flex-1 btn-ghost">-1</button>
+        <button data-delta="1" class="quick-btn btn btn-sm flex-1 btn-ghost">+1</button>
+        <button data-delta="10" class="quick-btn btn btn-sm flex-1 btn-ghost">+10</button>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="adjCancelBtn" class="btn flex-1">ยกเลิก</button>
+        <button id="adjSubmitBtn" class="btn btn-primary flex-1">บันทึก</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <!-- Navbar -->
+  <div class="navbar bg-base-100 shadow-sm px-4 sticky top-0 z-10">
+    <div class="flex-1 gap-2">
+      <span class="text-lg font-bold">🌿 Forevefarm Stock</span>
+      <div id="statsChips" class="hidden gap-2 ml-2 flex-wrap">
+        <div class="badge badge-ghost gap-1 text-xs">ทั้งหมด <strong id="totalCount">0</strong></div>
+        <div class="badge badge-warning gap-1 text-xs">น้อย <strong id="lowStockCount">0</strong></div>
+        <div class="badge badge-error gap-1 text-xs">หมด <strong id="zeroStockCount">0</strong></div>
+      </div>
+    </div>
+    <div class="flex-none gap-2">
+      <input type="text" id="searchInput" placeholder="ค้นหาชื่อ / SKU..."
+             class="input input-bordered input-sm w-44 hidden sm:block">
+      <select id="stockFilter" class="select select-bordered select-sm hidden sm:block">
+        <option value="all">ทั้งหมด</option>
+        <option value="low">สต็อกน้อย (≤5)</option>
+        <option value="zero">หมดสต็อก</option>
+        <option value="ok">ปกติ</option>
+      </select>
+      <button id="setupBtn" class="btn btn-sm btn-ghost" title="ตั้งค่า">⚙️</button>
+      <button id="refreshBtn" class="btn btn-sm btn-primary">🔄 โหลด</button>
+    </div>
+  </div>
+
+  <!-- Mobile Search -->
+  <div class="sm:hidden px-4 py-2 bg-base-100 border-b flex gap-2">
+    <input type="text" id="searchInputMobile" placeholder="ค้นหา..."
+           class="input input-bordered input-sm flex-1">
+    <select id="stockFilterMobile" class="select select-bordered select-sm w-28">
+      <option value="all">ทั้งหมด</option>
+      <option value="low">น้อย (≤5)</option>
+      <option value="zero">หมด</option>
+      <option value="ok">ปกติ</option>
+    </select>
+  </div>
+
+  <!-- Loading -->
+  <div id="loadingState" class="hidden flex-col items-center justify-center h-64 gap-3">
+    <span class="loading loading-spinner loading-lg text-primary"></span>
+    <p class="text-sm opacity-60" id="loadingMsg">กำลังโหลดสินค้า...</p>
+  </div>
+
+  <!-- Empty State -->
+  <div id="emptyState" class="flex flex-col items-center justify-center h-64 gap-3">
+    <p class="text-5xl">🔑</p>
+    <p class="text-base-content/60">กรอก Zort API credentials ก่อนเริ่มใช้งาน</p>
+    <button id="setupBtn2" class="btn btn-primary">ตั้งค่า API</button>
+  </div>
+
+  <!-- Error State -->
+  <div id="errorState" class="hidden flex-col items-center justify-center h-64 gap-3 px-6 text-center">
+    <p class="text-5xl">⚠️</p>
+    <p class="font-semibold" id="errorMsg"></p>
+    <p class="text-sm opacity-60">ถ้าเจอ CORS error → เปิด Chrome ด้วย <code>--disable-web-security</code> หรือใช้ proxy server</p>
+    <div class="flex gap-2">
+      <button id="setupBtn3" class="btn btn-ghost btn-sm">แก้ credentials</button>
+      <button id="retryBtn" class="btn btn-primary btn-sm">ลองใหม่</button>
+    </div>
+  </div>
+
+  <!-- Product Grid -->
+  <div id="productGrid" class="hidden p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+  </div>
+
+  <!-- No Results -->
+  <div id="noResults" class="hidden flex-col items-center justify-center h-40 gap-2">
+    <p class="text-4xl">🔍</p>
+    <p class="opacity-60">ไม่พบสินค้าที่ค้นหา</p>
+  </div>
+
+  <script>
+    const ZORT_BASE = 'https://open-api.zortout.com';
+    let credentials = {};
+    let allProducts = [];
+    let productMap = new Map();
+    let currentProductId = null;
+
+    // ── Wire up events (no inline handlers) ──────────────────────────────────
+    document.getElementById('saveCredsBtn').addEventListener('click', saveCredentials);
+    document.getElementById('cancelSetupBtn').addEventListener('click', () => {
+      document.getElementById('setupModal').close();
+    });
+    document.getElementById('setupBtn').addEventListener('click', openSetup);
+    document.getElementById('setupBtn2').addEventListener('click', openSetup);
+    document.getElementById('setupBtn3').addEventListener('click', openSetup);
+    document.getElementById('refreshBtn').addEventListener('click', loadProducts);
+    document.getElementById('retryBtn').addEventListener('click', loadProducts);
+    document.getElementById('adjCancelBtn').addEventListener('click', () => {
+      document.getElementById('adjustModal').close();
+    });
+    document.getElementById('adjSubmitBtn').addEventListener('click', submitStockUpdate);
+
+    document.getElementById('searchInput').addEventListener('input', filterProducts);
+    document.getElementById('searchInputMobile').addEventListener('input', filterProducts);
+    document.getElementById('stockFilter').addEventListener('change', filterProducts);
+    document.getElementById('stockFilterMobile').addEventListener('change', filterProducts);
+
+    document.querySelectorAll('.quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const delta = parseInt(btn.dataset.delta, 10);
+        const input = document.getElementById('adjNewStock');
+        input.value = Math.max(0, (parseInt(input.value, 10) || 0) + delta);
+      });
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem('zort_creds');
+      if (saved) {
+        try { credentials = JSON.parse(saved); } catch { credentials = {}; }
+        document.getElementById('storename').value = credentials.storename || '';
+        document.getElementById('apikey').value = credentials.apikey || '';
+        document.getElementById('apisecret').value = credentials.apisecret || '';
+        document.getElementById('warehousecode').value = credentials.warehousecode || '';
+        if (credentials.storename && credentials.apikey && credentials.apisecret) {
+          loadProducts();
+          return;
+        }
+      }
+      showState('empty');
+    });
+
+    function openSetup() {
+      document.getElementById('setupModal').showModal();
+    }
+
+    function saveCredentials() {
+      const storename = document.getElementById('storename').value.trim();
+      const apikey = document.getElementById('apikey').value.trim();
+      const apisecret = document.getElementById('apisecret').value.trim();
+      const warehousecode = document.getElementById('warehousecode').value.trim();
+
+      if (!storename || !apikey || !apisecret) {
+        showToast('กรุณากรอกข้อมูลให้ครบ', 'warning');
+        return;
+      }
+      credentials = { storename, apikey, apisecret, warehousecode };
+      localStorage.setItem('zort_creds', JSON.stringify(credentials));
+      document.getElementById('setupModal').close();
+      loadProducts();
+    }
+
+    // ── Load products from Zort API ───────────────────────────────────────────
+    async function loadProducts() {
+      if (!credentials.storename) { openSetup(); return; }
+
+      showState('loading');
+      document.getElementById('loadingMsg').textContent = 'กำลังโหลดสินค้า...';
+
+      const headers = {
+        storename: credentials.storename,
+        apikey: credentials.apikey,
+        apisecret: credentials.apisecret,
+      };
+
+      try {
+        let collected = [];
+        let page = 1;
+        const limit = 500;
+
+        while (true) {
+          const params = new URLSearchParams({ page, limit });
+          const res = await fetch(`${ZORT_BASE}/v4/Product/GetProducts?${params}`, { headers });
+
+          if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`HTTP ${res.status}${text ? ': ' + text.slice(0, 120) : ''}`);
+          }
+
+          const data = await res.json();
+          if (!data.list || data.list.length === 0) break;
+
+          collected = collected.concat(data.list);
+          document.getElementById('loadingMsg').textContent =
+            `โหลดแล้ว ${collected.length} รายการ...`;
+
+          if (data.list.length < limit) break;
+          page++;
+        }
+
+        allProducts = collected;
+        productMap = new Map(collected.map(p => [String(p.id), p]));
+
+        filterProducts();
+        updateStats(allProducts);
+        showState('grid');
+      } catch (err) {
+        console.error(err);
+        document.getElementById('errorMsg').textContent = err.message;
+        showState('error');
+      }
+    }
+
+    // ── Filter & render ───────────────────────────────────────────────────────
+    function filterProducts() {
+      const q = (
+        document.getElementById('searchInput').value ||
+        document.getElementById('searchInputMobile').value
+      ).toLowerCase().trim();
+
+      const filter =
+        document.getElementById('stockFilter').value ||
+        document.getElementById('stockFilterMobile').value ||
+        'all';
+
+      let list = allProducts;
+
+      if (q) {
+        list = list.filter(p =>
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.sku || '').toLowerCase().includes(q) ||
+          (p.barcode || '').toLowerCase().includes(q)
+        );
+      }
+
+      if (filter === 'zero') list = list.filter(p => (p.stock ?? 0) === 0);
+      else if (filter === 'low') list = list.filter(p => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 5);
+      else if (filter === 'ok') list = list.filter(p => (p.stock ?? 0) > 5);
+
+      const grid = document.getElementById('productGrid');
+      const noRes = document.getElementById('noResults');
+
+      if (list.length === 0 && allProducts.length > 0) {
+        grid.classList.add('hidden');
+        noRes.classList.remove('hidden');
+        noRes.classList.add('flex');
+      } else {
+        noRes.classList.add('hidden');
+        noRes.classList.remove('flex');
+        grid.classList.remove('hidden');
+        renderGrid(list);
+      }
+    }
+
+    function renderGrid(products) {
+      const grid = document.getElementById('productGrid');
+      // Clear existing children safely
+      while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+      products.forEach(p => {
+        const stock = p.stock ?? 0;
+        const img = p.imagepath || (Array.isArray(p.imageList) && p.imageList[0]) || '';
+
+        // Card
+        const card = document.createElement('div');
+        card.className = 'card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-95';
+        card.dataset.productId = String(p.id);
+        card.addEventListener('click', () => openAdjust(String(p.id)));
+
+        // Figure
+        const figure = document.createElement('figure');
+        figure.className = 'aspect-square bg-base-200 overflow-hidden rounded-t-2xl';
+
+        if (img) {
+          const imgEl = document.createElement('img');
+          // Validate URL is http/https before setting as src
+          if (/^https?:\/\//i.test(img)) {
+            imgEl.src = img;
+          }
+          imgEl.alt = p.name || '';
+          imgEl.className = 'w-full h-full object-cover';
+          imgEl.loading = 'lazy';
+          imgEl.addEventListener('error', () => {
+            imgEl.remove();
+            placeholder.classList.remove('hidden');
+          });
+          figure.appendChild(imgEl);
+        }
+
+        const placeholder = document.createElement('div');
+        placeholder.className = `w-full h-full items-center justify-center text-4xl opacity-20 ${img ? 'hidden' : 'flex'}`;
+        placeholder.textContent = '📦';
+        figure.appendChild(placeholder);
+
+        // Body
+        const body = document.createElement('div');
+        body.className = 'card-body p-2.5 gap-1';
+
+        const nameEl = document.createElement('p');
+        nameEl.className = 'text-xs font-medium leading-snug line-clamp-2 min-h-[2.5rem]';
+        nameEl.textContent = p.name || '-';
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between';
+
+        const skuEl = document.createElement('span');
+        skuEl.className = 'text-xs opacity-40';
+        skuEl.textContent = p.sku || '-';
+
+        const badge = document.createElement('span');
+        if (stock === 0) {
+          badge.className = 'badge badge-error badge-sm';
+          badge.textContent = 'หมด';
+        } else if (stock <= 5) {
+          badge.className = 'badge badge-warning badge-sm';
+          badge.textContent = String(stock);
+        } else {
+          badge.className = 'badge badge-success badge-sm';
+          badge.textContent = String(stock);
+        }
+
+        row.appendChild(skuEl);
+        row.appendChild(badge);
+        body.appendChild(nameEl);
+        body.appendChild(row);
+
+        card.appendChild(figure);
+        card.appendChild(body);
+        grid.appendChild(card);
+      });
+    }
+
+    // ── Adjust Modal ──────────────────────────────────────────────────────────
+    function openAdjust(productId) {
+      const p = productMap.get(productId);
+      if (!p) return;
+
+      currentProductId = productId;
+      const stock = p.stock ?? 0;
+
+      document.getElementById('adjProductName').textContent = p.name || '-';
+      document.getElementById('adjProductSku').textContent = p.sku ? `SKU: ${p.sku}` : '';
+      document.getElementById('adjCurrentStock').textContent = String(stock);
+      document.getElementById('adjNewStock').value = String(stock);
+
+      const imgWrapper = document.getElementById('adjImgWrapper');
+      while (imgWrapper.firstChild) imgWrapper.removeChild(imgWrapper.firstChild);
+
+      const imgUrl = p.imagepath || (Array.isArray(p.imageList) && p.imageList[0]) || '';
+      if (imgUrl && /^https?:\/\//i.test(imgUrl)) {
+        const imgEl = document.createElement('img');
+        imgEl.src = imgUrl;
+        imgEl.className = 'w-full h-full object-cover';
+        imgEl.addEventListener('error', () => {
+          imgEl.remove();
+          imgWrapper.textContent = '📦';
+        });
+        imgWrapper.appendChild(imgEl);
+      } else {
+        imgWrapper.textContent = '📦';
+      }
+
+      document.getElementById('adjustModal').showModal();
+      setTimeout(() => document.getElementById('adjNewStock').select(), 100);
+    }
+
+    async function submitStockUpdate() {
+      const newStock = parseInt(document.getElementById('adjNewStock').value, 10);
+      if (isNaN(newStock) || newStock < 0) {
+        showToast('กรุณาระบุจำนวนที่ถูกต้อง', 'warning');
+        return;
+      }
+
+      const p = productMap.get(currentProductId);
+      if (!p) return;
+
+      const btn = document.getElementById('adjSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'กำลังบันทึก...';
+
+      try {
+        const payload = {
+          warehousecode: credentials.warehousecode || '',
+          list: [{ productid: p.id, stock: newStock }],
+        };
+
+        const res = await fetch(`${ZORT_BASE}/v4/Product/UpdateProductStockList`, {
+          method: 'POST',
+          headers: {
+            storename: credentials.storename,
+            apikey: credentials.apikey,
+            apisecret: credentials.apisecret,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || (data.responsecode !== undefined && data.responsecode !== 0)) {
+          throw new Error(data.responsedescription || data.message || `HTTP ${res.status}`);
+        }
+
+        // Update local state
+        p.stock = newStock;
+        filterProducts();
+        updateStats(allProducts);
+        document.getElementById('adjustModal').close();
+        showToast(`✓ สต็อก "${p.name}" อัปเดตเป็น ${newStock} แล้ว`, 'success');
+      } catch (err) {
+        showToast('บันทึกไม่ได้: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'บันทึก';
+      }
+    }
+
+    // ── UI helpers ────────────────────────────────────────────────────────────
+    function updateStats(products) {
+      document.getElementById('totalCount').textContent = String(products.length);
+      document.getElementById('lowStockCount').textContent = String(
+        products.filter(p => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 5).length
+      );
+      document.getElementById('zeroStockCount').textContent = String(
+        products.filter(p => (p.stock ?? 0) === 0).length
+      );
+      const chips = document.getElementById('statsChips');
+      chips.classList.remove('hidden');
+      chips.classList.add('flex');
+    }
+
+    function showState(state) {
+      const ids = ['loadingState', 'emptyState', 'errorState', 'productGrid'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+      });
+      const el = document.getElementById(
+        state === 'loading' ? 'loadingState'
+        : state === 'empty' ? 'emptyState'
+        : state === 'error' ? 'errorState'
+        : 'productGrid'
+      );
+      if (state === 'grid') {
+        el.classList.remove('hidden');
+      } else {
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+      }
+    }
+
+    function showToast(msg, type) {
+      const wrap = document.createElement('div');
+      wrap.className = 'toast toast-top toast-center z-50';
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type || 'info'} shadow-lg max-w-xs`;
+      const span = document.createElement('span');
+      span.className = 'text-sm';
+      span.textContent = msg;
+      alert.appendChild(span);
+      wrap.appendChild(alert);
+      document.body.appendChild(wrap);
+      setTimeout(() => wrap.remove(), 3500);
+    }
+  </script>
+</body>
+</html>
