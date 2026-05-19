@@ -417,11 +417,8 @@
 
     .check-grid {
       padding: 0.75rem;
-      display: grid; gap: 0.65rem;
-      grid-template-columns: repeat(auto-fill, minmax(148px,1fr));
-      align-content: start;
+      display: flex; flex-direction: column; gap: 0.5rem;
     }
-    @media(max-width:480px) { .check-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.5rem; } }
 
     .ccard {
       background: var(--surface); border: 1px solid var(--border);
@@ -499,6 +496,46 @@
       position:sticky; top:calc(54px + 46px); z-index:28;
     }
     #checkTagStrip::-webkit-scrollbar { display:none; }
+
+    /* ── group checker cards ── */
+    .gccard {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      display: flex; flex-direction: column; transition: opacity 0.22s;
+    }
+    .gccard.checked { opacity: 0.45; border-color: rgba(180,196,211,0.18); }
+    .gccard-header { display: flex; align-items: stretch; }
+    .gccard-img { width: 72px; height: 72px; object-fit: cover; flex-shrink: 0; }
+    .gccard-info {
+      flex: 1; padding: 0.5rem 0.65rem 0.45rem;
+      display: flex; flex-direction: column; gap: 0.18rem; min-width: 0;
+    }
+    .gccard-name {
+      font-size: 0.72rem; font-weight: 500; color: var(--text); line-height: 1.35;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .gccard-agg { display: flex; gap: 0.35rem; margin-top: 0.15rem; }
+    .gcagg-pill {
+      font-size: 0.65rem; padding: 0.1rem 0.45rem; border-radius: 4px;
+      font-family: 'DM Mono', monospace; font-weight: 500;
+    }
+    .gcagg-pill.off { background: rgba(31,49,81,0.5); border: 1px solid rgba(31,49,81,0.75); color: var(--elevated); }
+    .gcagg-pill.stk { background: rgba(234,231,223,0.06); border: 1px solid rgba(234,231,223,0.18); color: var(--foggy); }
+    .gccard-variants { border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+    .gcvar-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.32rem 0.65rem; border-bottom: 1px solid rgba(180,196,211,0.06);
+    }
+    .gcvar-row:last-child { border-bottom: none; }
+    .gcvar-size { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--elevated); min-width: 64px; }
+    .gcvar-btns { display: flex; gap: 0.3rem; }
+    .gcvar-btns .ccard-loc-btn { flex: none; padding: 0.26rem 0.5rem; font-size: 0.62rem; min-width: 70px; }
+    .gccard-footer {
+      padding: 0.3rem 0.65rem; font-size: 0.62rem; color: var(--dim);
+      background: rgba(0,0,0,0.18); border-top: 1px solid var(--border);
+      font-family: 'DM Mono', monospace; letter-spacing: 0.01em;
+    }
+    .gccard-footer.done { color: var(--elevated); }
   </style>
 </head>
 <body>
@@ -745,6 +782,27 @@ function extractSize(name) {
   if (sp) return sp[1];
   return null;
 }
+function groupKey(name) {
+  if (!name) return '';
+  return name
+    .replace(/\s*\(\d{1,3}(?:\.\d)?\)\s*$/, '')
+    .replace(/\s*\bSIZE\s+\d{1,3}(?:\.\d)?\s*$/i, '')
+    .replace(/\s*\b(?:EU|UK|US|ไซส์)\s*\d{1,3}(?:\.\d)?\s*$/i, '')
+    .replace(/\s*\b(XXL|XL|XS|[SML]|2XL|3XL)\s*$/i, '')
+    .trim();
+}
+function buildGroups(list) {
+  const map = {};
+  list.forEach(p => {
+    const k = groupKey(p.name);
+    if (!map[k]) map[k] = { key: k, brand: p.category||'ไม่ระบุ', image: '', items: [], offTotal: 0, stkTotal: 0 };
+    map[k].items.push(p);
+    map[k].offTotal += (p.offS || 0);
+    map[k].stkTotal += (p.stkS || 0);
+    if (!map[k].image) map[k].image = p.imagepath || (Array.isArray(p.imageList) && p.imageList[0]) || '';
+  });
+  return Object.values(map);
+}
 function fmtChkTs(iso) {
   const d = new Date(iso);
   const p = n => String(n).padStart(2,'0');
@@ -791,6 +849,93 @@ function switchCheckFilter(filter) {
   checkActiveBrand = 'all';
   buildChecker();
 }
+function mkGroupCard(grp) {
+  const isItemDone = p =>
+    (!p.offS || !!CHECKS[chkKey(p.id,'office')]) &&
+    (!p.stkS || !!CHECKS[chkKey(p.id,'stock')]);
+  const fullyDone = grp.items.every(isItemDone);
+
+  const offItems = grp.items.filter(p => p.offS > 0);
+  const stkItems = grp.items.filter(p => p.stkS > 0);
+  const offDoneCount = offItems.filter(p => !!CHECKS[chkKey(p.id,'office')]).length;
+  const stkDoneCount = stkItems.filter(p => !!CHECKS[chkKey(p.id,'stock')]).length;
+
+  const card = el('div','gccard'+(fullyDone?' checked':''));
+
+  // header: image + info
+  const header = el('div','gccard-header');
+  if (grp.image && /^https?:\/\//i.test(grp.image)) {
+    const img = el('img','gccard-img');
+    img.src = grp.image; img.alt = grp.key; img.loading = 'lazy';
+    img.addEventListener('error', () => { const ph=el('div','ccard-ph'); ph.textContent='📦'; img.replaceWith(ph); });
+    header.appendChild(img);
+  } else { const ph=el('div','ccard-ph'); ph.textContent='📦'; header.appendChild(ph); }
+
+  const info = el('div','gccard-info');
+  const brandEl = el('p','ccard-brand'); brandEl.textContent = grp.brand; info.appendChild(brandEl);
+  const nm = el('p','gccard-name'); nm.textContent = grp.key; info.appendChild(nm);
+  const agg = el('div','gccard-agg');
+  const op = el('span','gcagg-pill off'); op.textContent = '🏢 '+grp.offTotal; agg.appendChild(op);
+  const sp = el('span','gcagg-pill stk'); sp.textContent = '📦 '+grp.stkTotal; agg.appendChild(sp);
+  info.appendChild(agg);
+  header.appendChild(info);
+  card.appendChild(header);
+
+  // variant rows (sorted by size numerically)
+  const sorted = [...grp.items].sort((a,b) => {
+    const sa = parseFloat(extractSize(a.name)||'0');
+    const sb = parseFloat(extractSize(b.name)||'0');
+    return sa - sb;
+  });
+  const varList = el('div','gccard-variants');
+  sorted.forEach(p => {
+    const row = el('div','gcvar-row');
+    const sz = extractSize(p.name);
+    const szLbl = el('span','gcvar-size');
+    szLbl.textContent = sz ? 'SIZE '+sz : '—';
+    row.appendChild(szLbl);
+
+    const btns = el('div','gcvar-btns');
+    if (p.offS > 0) {
+      const done = !!CHECKS[chkKey(p.id,'office')];
+      const btn = el('button','ccard-loc-btn'+(done?' conf-off':''));
+      btn.textContent = done ? '🏢 ✓' : '🏢 '+p.offS+' ตรวจ';
+      btn.addEventListener('click', () => {
+        if (CHECKS[chkKey(p.id,'office')]) delete CHECKS[chkKey(p.id,'office')];
+        else CHECKS[chkKey(p.id,'office')] = new Date().toISOString();
+        saveChecks(); buildChecker();
+      });
+      btns.appendChild(btn);
+    }
+    if (p.stkS > 0) {
+      const done = !!CHECKS[chkKey(p.id,'stock')];
+      const btn = el('button','ccard-loc-btn'+(done?' conf-stk':''));
+      btn.textContent = done ? '📦 ✓' : '📦 '+p.stkS+' ตรวจ';
+      btn.addEventListener('click', () => {
+        if (CHECKS[chkKey(p.id,'stock')]) delete CHECKS[chkKey(p.id,'stock')];
+        else CHECKS[chkKey(p.id,'stock')] = new Date().toISOString();
+        saveChecks(); buildChecker();
+      });
+      btns.appendChild(btn);
+    }
+    row.appendChild(btns);
+    varList.appendChild(row);
+  });
+  card.appendChild(varList);
+
+  // footer progress
+  const footer = el('div','gccard-footer'+(fullyDone?' done':''));
+  if (fullyDone) {
+    footer.textContent = '✓ ตรวจครบ';
+  } else {
+    const parts = [];
+    if (offItems.length) parts.push('🏢 '+offDoneCount+'/'+offItems.length);
+    if (stkItems.length) parts.push('📦 '+stkDoneCount+'/'+stkItems.length);
+    footer.textContent = parts.join('  ·  ');
+  }
+  card.appendChild(footer);
+  return card;
+}
 function buildChecker() {
   buildCheckerTags();
   let list = ALL;
@@ -798,20 +943,19 @@ function buildChecker() {
   if (CHECK_FILTER === 'stock')  list = list.filter(p => p.stkS > 0);
   if (checkActiveBrand !== 'all') list = list.filter(p => (p.category||'ไม่ระบุ') === checkActiveBrand);
 
-  const fullyChecked = p => {
-    const needOff = p.offS > 0;
-    const needStk = p.stkS > 0;
-    return (!needOff || !!CHECKS[chkKey(p.id,'office')]) &&
-           (!needStk || !!CHECKS[chkKey(p.id,'stock')]);
-  };
-  const done  = list.filter(fullyChecked).length;
-  document.getElementById('chkProgress').textContent = `✓ ${done} / ${list.length}`;
+  const groups = buildGroups(list);
+  const isGroupDone = grp => grp.items.every(p =>
+    (!p.offS || !!CHECKS[chkKey(p.id,'office')]) &&
+    (!p.stkS || !!CHECKS[chkKey(p.id,'stock')])
+  );
+  const doneCount = groups.filter(isGroupDone).length;
+  document.getElementById('chkProgress').textContent = `✓ ${doneCount} / ${groups.length} กลุ่ม`;
 
   const g = document.getElementById('checkGrid');
   while (g.firstChild) g.removeChild(g.firstChild);
-  const unchecked = list.filter(p => !fullyChecked(p));
-  const checked   = list.filter(p =>  fullyChecked(p));
-  [...unchecked, ...checked].forEach(p => g.appendChild(mkCheckCard(p)));
+  const unchecked = groups.filter(grp => !isGroupDone(grp));
+  const checked   = groups.filter(grp =>  isGroupDone(grp));
+  [...unchecked, ...checked].forEach(grp => g.appendChild(mkGroupCard(grp)));
 }
 function mkCheckCard(p) {
   const offKey  = chkKey(p.id,'office');
