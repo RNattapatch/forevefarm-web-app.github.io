@@ -892,14 +892,18 @@ function logTransfer(data) {
 
 // ── API ──────────────────────────────────────────────────────────
 async function apiUpdate(wh, productId, stock) {
-  const r = await fetch(`${API}/v4/Product/UpdateProductStockList`, {
+  // warehousecode = query param; body uses "stocks" array (not "list")
+  const qs = wh ? `?warehousecode=${encodeURIComponent(wh)}` : '';
+  const r = await fetch(`${API}/v4/Product/UpdateProductStockList${qs}`, {
     method: 'POST',
     headers: { storename:C.storename, apikey:C.apikey, apisecret:C.apisecret, 'Content-Type':'application/json' },
-    body: JSON.stringify({ warehousecode: wh, list:[{ productid: productId, stock }] }),
+    body: JSON.stringify({ stocks: [{ productid: productId, stock }] }),
   });
   const d = await r.json().catch(()=>({}));
-  if (!r.ok || (d.responsecode!==undefined && d.responsecode!==0))
-    throw new Error(d.responsedescription || d.message || `HTTP ${r.status}`);
+  if (d.responsecode !== undefined && d.responsecode !== 0)
+    throw new Error(d.responsedescription || d.message || `Zort error ${d.responsecode}`);
+  if (!r.ok)
+    throw new Error(`HTTP ${r.status}`);
 }
 
 // ── dashboard ────────────────────────────────────────────────────
