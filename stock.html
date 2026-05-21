@@ -620,6 +620,10 @@
       <button class="card-act" data-d="1">+1</button>
       <button class="card-act" data-d="10">+10</button>
     </div>
+    <p style="font-size:0.7rem;color:#d4a06a;background:rgba(184,115,51,0.12);border:1px solid rgba(184,115,51,0.3);border-radius:6px;padding:0.5rem 0.65rem;margin-top:0.8rem;line-height:1.45">
+      ⚠️ <strong>หมายเหตุ:</strong> "ปรับสต็อก" จะไม่ผูกต้นทุนสินค้า (cost) — ใช้สำหรับนับสต็อกจริงเท่านั้น<br>
+      ถ้าต้องการ <em>ย้ายสินค้าระหว่างคลัง</em> ให้ปิดหน้านี้แล้วใช้ปุ่ม "↕ โอน" แทน — ต้นทุนจะผูกตามอัตโนมัติ
+    </p>
     <div class="btn-row">
       <button id="btnCancelAdj" class="btn-base btn-ghost">ยกเลิก</button>
       <button id="btnSubmitAdj" class="btn-base btn-office" style="flex:2">บันทึก</button>
@@ -630,12 +634,15 @@
 <!-- ══════════════════ TRANSFER MODAL ══════════════════ -->
 <dialog id="dlgTf">
   <div class="modal-box">
-    <p class="modal-title">ย้ายสินค้า</p>
+    <p class="modal-title">โอนสินค้าระหว่างคลัง</p>
+    <p style="font-size:0.7rem;color:#7eb09b;background:rgba(74,122,90,0.12);border:1px solid rgba(74,122,90,0.3);border-radius:6px;padding:0.5rem 0.65rem;margin-bottom:0.9rem;line-height:1.45">
+      ✅ <strong>การโอน</strong> จะผูกต้นทุนสินค้า (cost) จากคลังต้นทางไปคลังปลายทางอัตโนมัติ · Zort log จะแสดงเป็น "โอน"
+    </p>
     <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.1rem">
       <div class="prod-thumb" id="tfThumb">📦</div>
       <div class="prod-info"><p class="pn" id="tfName"></p><p class="ps" id="tfSku"></p></div>
     </div>
-    <p style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.09em;color:var(--dim);margin-bottom:0.5rem">ย้ายจาก → ไปที่</p>
+    <p style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.09em;color:var(--dim);margin-bottom:0.5rem">โอนจาก → ไปที่</p>
     <div class="loc-sel" style="margin-bottom:1rem">
       <button class="loc-btn" id="tfBtnO2S">
         <p class="lb">Office → Stock</p>
@@ -646,18 +653,23 @@
         <p style="font-size:0.68rem;color:var(--foggy);font-family:'DM Mono',monospace;margin-top:0.25rem">มีที่ Stock: <span id="tfStkN">0</span></p>
       </button>
     </div>
-    <p style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.09em;color:var(--dim);margin-bottom:0.4rem">จำนวนที่ย้าย</p>
+    <p style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.09em;color:var(--dim);margin-bottom:0.4rem">จำนวนที่โอน</p>
     <input type="number" id="tfQty" class="qty-inp" min="1" step="1" value="1">
     <p id="tfAvail" style="font-size:0.68rem;color:var(--dim);margin-top:0.4rem"></p>
     <div class="hr" style="margin:0.9rem 0 0.7rem"></div>
-    <div class="field"><label>👤 ชื่อผู้ย้าย</label><input type="text" id="tfUser" class="inp" placeholder="ชื่อของคุณ" autocomplete="name"></div>
-    <div class="field" style="margin:0"><label>📝 เหตุผลที่ย้าย</label><input type="text" id="tfReason" class="inp" placeholder="เช่น ถ่ายรูป / ลูกค้าทดลอง / คืนของ / จัดเรียงใหม่"></div>
+    <div class="field"><label>👤 ชื่อผู้โอน</label><input type="text" id="tfUser" class="inp" placeholder="ชื่อของคุณ" autocomplete="name"></div>
+    <div class="field" style="margin:0"><label>📝 เหตุผลที่โอน</label><input type="text" id="tfReason" class="inp" placeholder="เช่น ถ่ายรูป / ลูกค้าทดลอง / คืนของ / จัดเรียงใหม่"></div>
     <div class="btn-row">
       <button id="btnCancelTf" class="btn-base btn-ghost">ยกเลิก</button>
-      <button id="btnSubmitTf" class="btn-base btn-office" style="flex:2">ย้าย ↕</button>
+      <button id="btnSubmitTf" class="btn-base btn-office" style="flex:2">โอน ↕</button>
     </div>
   </div>
 </dialog>
+
+<!-- ══════════════════ FREEZE BANNER (Phase 1) ══════════════════ -->
+<div id="freezeBanner" style="display:none;background:rgba(184,115,51,0.95);color:#fff;padding:0.6rem 1rem;text-align:center;font-size:0.85rem;font-weight:500;border-bottom:2px solid rgba(184,115,51,0.5)">
+  🔒 ระบบหยุดเขียนชั่วคราว — กำลังตรวจสอบปัญหาตัวเลขสต็อก (อัปเดต 21 พ.ค. 2026) · ดูสต็อกได้ปกติ · แต่ปุ่ม "ปรับ" และ "ย้าย" ถูก disable ไว้ · ติดต่อปัน
+</div>
 
 <!-- ══════════════════ NAV ══════════════════ -->
 <nav class="nav">
@@ -749,6 +761,36 @@
 
 <script>
 const API = 'https://open-api.zortout.com';
+
+// ═══════════════════════════════════════════════════════════════════
+// INCIDENT FIX FLAGS — 2026-05-21 stock loss recovery
+//
+// PRIMARY root cause (confirmed by Zort support + Zort Transfer API docs):
+//   Webapp called DecreaseProductStockList + IncreaseProductStockList for
+//   inter-warehouse moves — Zort logs these as TWO "Adjust" actions, NOT one
+//   "Transfer". Adjust-In on the destination doesn't carry cost from the source,
+//   so the average-cost calculation drops the inventory value to ~0 for that line.
+//   Fix: use POST /v4/Transfer/AddTransfer with status="Success" — one atomic
+//   call that Zort logs as "โอน" and preserves cost basis automatically.
+//
+// SECONDARY root cause (defensive — still kept in checkZortRes):
+//   `detail.stockupdate.notupdate` counter was never checked. Zort returns
+//   notupdate=1 silently when a product isn't registered in the warehouse.
+//   This still matters for Adjust (UpdateProductStockList) which we still use.
+//
+// Test environment: Pun does not have his own Zort account, so smoke tests run
+// against the customer's live data. TEST_MODE caps risk to 1 unit per call.
+// ═══════════════════════════════════════════════════════════════════
+const WRITE_DISABLED     = false;                       // Re-enabled — Transfer endpoint fix in place
+const WRITE_DISABLED_MSG = '🔒 ระบบหยุดเขียนชั่วคราว — ติดต่อปัน';
+const TEST_MODE          = true;                       // Set to true for smoke test on customer's account — caps qty + forces confirm
+const TEST_MAX_QTY       = 1;                           // Hard cap during TEST_MODE
+const DIAG_MODE          = true;                        // Ship every Zort API call (raw response) to log sheet — safety net for first week
+const DIAG_SKU_ALLOWLIST = new Set([]);                 // Only relevant if WRITE_DISABLED=true
+const LARGE_DELTA_THRESHOLD = 10;                       // Confirm before adjusting by this many units or more
+const TRANSFER_NUMBER_PREFIX = 'WEB';                   // Transfer number prefix — generated as WEB-YYYYMMDDHHmmssSSS-NNNN
+// ═══════════════════════════════════════════════════════════════════
+
 let C = {};          // credentials
 let ALL = [];        // merged products
 let MAP = new Map(); // id → product
@@ -1192,6 +1234,11 @@ document.querySelectorAll('#dlgAdj .quick-btns .card-act').forEach(b => {
 
 // ── init ─────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
+  // Show freeze banner when writes are disabled (Phase 1)
+  if (WRITE_DISABLED) {
+    const banner = document.getElementById('freezeBanner');
+    if (banner) banner.style.display = 'block';
+  }
   loadChecks();
   loadHistory();
   const s = localStorage.getItem('ff_c');
@@ -1361,9 +1408,16 @@ function mkCard(p, idx) {
   // actions
   const acts = el('div','card-acts');
   const btnAdj = el('button','card-act'); btnAdj.textContent = 'ปรับ';
+  const btnTf  = el('button','card-act tf'); btnTf.textContent = '↕ โอน';
+  if (WRITE_DISABLED && !DIAG_SKU_ALLOWLIST.has(p.sku)) {
+    btnAdj.disabled = true;
+    btnTf.disabled  = true;
+    btnAdj.style.opacity = btnTf.style.opacity = '0.35';
+    btnAdj.style.cursor  = btnTf.style.cursor  = 'not-allowed';
+    btnAdj.title = btnTf.title = WRITE_DISABLED_MSG;
+  }
   btnAdj.addEventListener('click', e => { e.stopPropagation(); openAdj(String(p.id)); });
-  const btnTf = el('button','card-act tf'); btnTf.textContent = '↕ ย้าย';
-  btnTf.addEventListener('click', e => { e.stopPropagation(); openTf(String(p.id)); });
+  btnTf.addEventListener('click',  e => { e.stopPropagation(); openTf(String(p.id)); });
   acts.appendChild(btnAdj); acts.appendChild(btnTf);
   body.appendChild(acts);
 
@@ -1419,9 +1473,12 @@ function openAdj(id) {
   document.getElementById('adjSku').textContent  = p.sku||'';
   document.getElementById('adjOfficeN').textContent = String(p.offS??0);
   document.getElementById('adjStockN').textContent  = String(p.stkS??0);
-  selAdjLoc('office');
+  // Default to warehouse that currently holds more stock — less likely to be mis-overwritten
+  const defaultLoc = ((p.stkS ?? 0) > (p.offS ?? 0)) ? 'stock' : 'office';
+  selAdjLoc(defaultLoc);
   open('dlgAdj');
-  setTimeout(()=>document.getElementById('adjQty').select(),80);
+  // Auto-select removed — prevents fat-finger overwrite of pre-filled value.
+  // Employees must explicitly click/tap the field before typing.
 }
 function selAdjLoc(loc) {
   ADJ_LOC = loc;
@@ -1432,12 +1489,23 @@ function selAdjLoc(loc) {
 }
 async function submitAdj() {
   const p = MAP.get(CUR); if (!p) return;
+  if (WRITE_DISABLED && !DIAG_SKU_ALLOWLIST.has(p.sku)) {
+    toast(WRITE_DISABLED_MSG, 'w'); return;
+  }
   const qty = parseInt(document.getElementById('adjQty').value,10);
   if (isNaN(qty)||qty<0) { toast('จำนวนไม่ถูกต้อง','w'); return; }
   const wh = ADJ_LOC==='office' ? (C.wh_office||'') : (C.wh_stock||'');
   if (!wh) {
     toast('ยังไม่ได้ตั้งค่า Warehouse Code — เปิด ⚙ ตั้งค่า','w');
     close('dlgAdj'); open('dlgSetup'); return;
+  }
+  // Large-delta safety prompt — guards against fat-finger overwrites
+  const currentQty = ADJ_LOC === 'office' ? (p.offS ?? 0) : (p.stkS ?? 0);
+  const delta = qty - currentQty;
+  if (Math.abs(delta) >= LARGE_DELTA_THRESHOLD) {
+    const where = ADJ_LOC === 'office' ? '🏢 Office' : '📦 Stock';
+    const sign  = delta > 0 ? '+' : '';
+    if (!confirm(`ยืนยันการปรับ?\n\n${where}: ${currentQty} → ${qty}\nเปลี่ยน: ${sign}${delta} ชิ้น\n\n(กด Cancel ถ้าไม่ใช่ค่าที่ต้องการ)`)) return;
   }
   const btn = document.getElementById('btnSubmitAdj');
   setBtn(btn,true,'กำลังบันทึก...');
@@ -1476,10 +1544,22 @@ function selTfDir(dir) {
 }
 async function submitTf() {
   const p = MAP.get(CUR); if (!p) return;
-  const qty    = parseInt(document.getElementById('tfQty').value,10);
+  if (WRITE_DISABLED && !DIAG_SKU_ALLOWLIST.has(p.sku)) {
+    toast(WRITE_DISABLED_MSG, 'w'); return;
+  }
+  let qty      = parseInt(document.getElementById('tfQty').value,10);
   const user   = document.getElementById('tfUser').value.trim()   || 'ไม่ระบุ';
   const reason = document.getElementById('tfReason').value.trim() || '-';
   if (isNaN(qty)||qty<=0) { toast('จำนวนไม่ถูกต้อง','w'); return; }
+
+  // TEST_MODE — smoke test guard: cap qty and force per-call confirm
+  if (TEST_MODE) {
+    if (qty > TEST_MAX_QTY) {
+      toast(`TEST_MODE: จำกัด qty ≤ ${TEST_MAX_QTY} ชิ้นต่อ call`, 'w'); return;
+    }
+    if (!confirm(`🧪 TEST MODE\n\nSKU: ${p.sku}\nย้าย: ${qty} ชิ้น ${TF_DIR==='o2s'?'Office→Stock':'Stock→Office'}\n\nนี่ test ใน production จริง — ยืนยันต่อไหม?`)) return;
+  }
+
   const fromO  = TF_DIR==='o2s';
   const srcQty = fromO ? p.offS : p.stkS;
   if (qty > srcQty) { toast(`สต็อกไม่พอ — มีแค่ ${srcQty}`,'w'); return; }
@@ -1489,18 +1569,47 @@ async function submitTf() {
     toast('ยังไม่ได้ตั้งค่า Warehouse Code — เปิด ⚙ ตั้งค่า แล้วกด 🔄 ดู Warehouse','w');
     close('dlgTf'); open('dlgSetup'); return;
   }
+  if (!p.sku) {
+    toast('สินค้านี้ไม่มี SKU — Zort Transfer API ต้องใช้ SKU. แก้ใน Zort ก่อน', 'e');
+    return;
+  }
+
   const btn = document.getElementById('btnSubmitTf');
-  setBtn(btn,true,'กำลังย้าย...');
+  setBtn(btn,true,'กำลังโอน...');
   try {
-    await apiDecrease(srcWh, p.id, qty);
-    await apiIncrease(dstWh, p.id, qty);
+    // Single atomic call — Zort logs as "โอน" and carries cost basis from source warehouse.
+    // This replaces the old Decrease+Increase pair which Zort treated as two separate
+    // Adjust operations (cost did not transfer → inventory value collapsed).
+    const transferNumber = generateTransferNumber();
+    await apiAddTransfer({
+      number: transferNumber,
+      fromwarehousecode: srcWh,
+      towarehousecode: dstWh,
+      sku: p.sku,
+      productName: p.name || p.sku,
+      qty,
+    });
+
     if (fromO) { p.offS -= qty; p.stkS += qty; } else { p.stkS -= qty; p.offS += qty; }
     localStorage.setItem('ff_lastUser', user);
-    logTransfer({ user, productName: p.name||'-', sku: p.sku||'-', from: fromO?'Office':'Stock', to: fromO?'Stock':'Office', qty, reason });
+    logTransfer({
+      user, productName: p.name||'-', sku: p.sku||'-',
+      from: fromO?'Office':'Stock', to: fromO?'Stock':'Office',
+      qty, reason: `${reason} · TransferNo=${transferNumber}`,
+    });
     render(); updateStats(); close('dlgTf');
-    toast(`✓ ย้าย ${qty} ชิ้น ${fromO?'Office→Stock':'Stock→Office'}`,'s');
-  } catch(e) { toast(e.message,'e'); }
-  finally { setBtn(btn,false,'ย้าย ↕'); }
+    toast(`✓ โอน ${qty} ชิ้น ${fromO?'Office→Stock':'Stock→Office'} (${transferNumber})`,'s');
+  } catch(e) {
+    toast(`โอนไม่สำเร็จ: ${e.message}`, 'e');
+  } finally { setBtn(btn,false,'โอน ↕'); }
+}
+
+function generateTransferNumber() {
+  const d = new Date();
+  const pad = (n, w=2) => String(n).padStart(w, '0');
+  const ts = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}${pad(d.getMilliseconds(),3)}`;
+  const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `${TRANSFER_NUMBER_PREFIX}-${ts}-${rand}`;
 }
 
 function logTransfer(data) {
@@ -1514,37 +1623,161 @@ function logTransfer(data) {
 }
 
 // ── API ──────────────────────────────────────────────────────────
-async function checkZortRes(r) {
-  const d = await r.json().catch(()=>({}));
-  // Zort v4 returns resCode (String "200") and resDesc
+// Zort v4 response (per docs https://developers.zortout.com/api-reference/product):
+//   { resCode:"200", resDesc:"Success", detail:{ stockupdate:{ success, fail, notupdate, ... } } }
+//
+// All 3 endpoints (UpdateProductStockList / IncreaseProductStockList / DecreaseProductStockList)
+// share the same envelope `detail.stockupdate`. The 2026-05-21 incident root cause:
+// the previous check only caught `fail > 0` and ignored `notupdate > 0` — which is what
+// Zort returns when a product isn't registered in the target warehouse (silent no-op).
+// During Transfer, Decrease on source succeeded while Increase on destination returned
+// notupdate=1 → guard passed → source stock dropped, destination stock didn't move → net loss.
+async function checkZortRes(r, endpoint, rawText) {
+  let d = {};
+  try { d = JSON.parse(rawText); } catch {}
   const code = String(d.resCode ?? d.responsecode ?? (r.ok ? '200' : r.status));
   const desc = d.resDesc ?? d.responsedescription ?? d.message;
-  if (code !== '200') throw new Error(desc || `Zort error ${code}`);
+  if (code !== '200') throw new Error(desc || `Zort ${endpoint||''} error ${code}`);
+
   const upd = d.detail?.stockupdate;
-  if (upd?.fail > 0) throw new Error(`Zort ไม่อัปเดต (fail=${upd.fail})`);
+  if (!upd || typeof upd !== 'object') {
+    throw new Error(`Zort ${endpoint||''}: ไม่พบ detail.stockupdate ใน response — โปรดเช็ค raw response ใน API Diagnostic sheet`);
+  }
+  const failCount      = Number(upd.fail)      || 0;
+  const notupdateCount = Number(upd.notupdate) || 0;
+  const successCount   = Number(upd.success)   || 0;
+
+  if (failCount > 0) {
+    const firstFail = Array.isArray(upd.faillist) && upd.faillist[0];
+    const reason = firstFail ? ` (${firstFail.reason || firstFail.message || JSON.stringify(firstFail)})` : '';
+    throw new Error(`Zort ${endpoint||''} ไม่อัปเดต fail=${failCount}${reason}`);
+  }
+  if (notupdateCount > 0) {
+    const firstNot = Array.isArray(upd.notupdatelist) && upd.notupdatelist[0];
+    const reason = firstNot ? ` (${firstNot.reason || firstNot.message || JSON.stringify(firstNot)})` : '';
+    throw new Error(`Zort ${endpoint||''} ไม่ทำงาน notupdate=${notupdateCount}${reason} — สินค้านี้อาจยังไม่ได้ลงทะเบียนใน warehouse นี้`);
+  }
+  if (successCount === 0) {
+    throw new Error(`Zort ${endpoint||''} success=0 — ระบบไม่ได้ทำอะไร (ตรวจ payload + warehouse code)`);
+  }
 }
 
 async function apiStockCall(endpoint, wh, productId, qty) {
-  const qs = wh ? `?warehousecode=${encodeURIComponent(wh)}` : '';
-  const r = await fetch(`${API}/v4/Product/${endpoint}${qs}`, {
-    method: 'POST',
-    headers: { storename:C.storename, apikey:C.apikey, apisecret:C.apisecret, 'Content-Type':'application/json' },
-    body: JSON.stringify({ stocks: [{ productid: productId, stock: parseFloat(qty) }] }),
-  });
-  await checkZortRes(r);
+  const qs  = wh ? `?warehousecode=${encodeURIComponent(wh)}` : '';
+  const url = `${API}/v4/Product/${endpoint}${qs}`;
+  const body = { stocks: [{ productid: productId, stock: parseFloat(qty) }] };
+
+  let r, rawText = '', errMsg = null;
+  try {
+    r = await fetch(url, {
+      method: 'POST',
+      headers: { storename:C.storename, apikey:C.apikey, apisecret:C.apisecret, 'Content-Type':'application/json' },
+      body: JSON.stringify(body),
+    });
+    rawText = await r.text();
+  } catch (e) {
+    errMsg = e.message;
+  }
+
+  // Diagnostic — ship every call (and any thrown error) to Google Sheet for offline analysis
+  if (DIAG_MODE && C.log_url) {
+    try {
+      fetch(C.log_url, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          type: 'api_diag',
+          timestamp: new Date().toISOString(),
+          endpoint, warehouse: wh, productId, qty,
+          httpStatus: r ? r.status : 0,
+          httpOk: r ? r.ok : false,
+          rawResponse: (rawText || errMsg || '').slice(0, 4000),
+          fetchError: errMsg,
+        }),
+      }).catch(() => {});
+    } catch {}
+  }
+
+  if (errMsg) throw new Error(`Network error: ${errMsg}`);
+  await checkZortRes(r, endpoint, rawText);
 }
 
-// set absolute value (for Adjust)
+// set absolute value (for Adjust) — does NOT preserve cost; Adjust UI shows warning
 async function apiUpdate(wh, productId, stock) {
   await apiStockCall('UpdateProductStockList', wh, productId, stock);
 }
-// add delta (for Transfer destination)
+// Increase/Decrease are kept for emergencies but are NOT used for inter-warehouse Transfer
+// (Zort logs them as separate "Adjust" operations and they break cost basis).
+// Use apiAddTransfer for inter-warehouse moves.
 async function apiIncrease(wh, productId, qty) {
   await apiStockCall('IncreaseProductStockList', wh, productId, qty);
 }
-// subtract delta (for Transfer source)
 async function apiDecrease(wh, productId, qty) {
   await apiStockCall('DecreaseProductStockList', wh, productId, qty);
+}
+
+// Atomic inter-warehouse transfer — preserves cost basis (per Zort docs).
+// POST /v4/Transfer/AddTransfer · status="Success" commits immediately.
+// Body schema: { number, status, transferdate, fromwarehousecode, towarehousecode, list:[{sku,name,number}] }
+// Response: { resCode:"200", resDesc, detail:{ id } } — no stockupdate envelope here.
+async function apiAddTransfer({ number, fromwarehousecode, towarehousecode, sku, productName, qty }) {
+  const url  = `${API}/v4/Transfer/AddTransfer`;
+  const today = new Date();
+  const transferdate = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const body = {
+    number,
+    status: 'Success',
+    transferdate,
+    fromwarehousecode,
+    towarehousecode,
+    list: [{ sku, name: productName, number: String(qty) }],
+  };
+
+  let r, rawText = '', errMsg = null;
+  try {
+    r = await fetch(url, {
+      method: 'POST',
+      headers: { storename:C.storename, apikey:C.apikey, apisecret:C.apisecret, 'Content-Type':'application/json' },
+      body: JSON.stringify(body),
+    });
+    rawText = await r.text();
+  } catch (e) {
+    errMsg = e.message;
+  }
+
+  if (DIAG_MODE && C.log_url) {
+    try {
+      fetch(C.log_url, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          type: 'api_diag',
+          timestamp: new Date().toISOString(),
+          endpoint: 'AddTransfer',
+          warehouse: `${fromwarehousecode}→${towarehousecode}`,
+          productId: sku,
+          qty,
+          httpStatus: r ? r.status : 0,
+          httpOk: r ? r.ok : false,
+          rawResponse: (rawText || errMsg || '').slice(0, 4000),
+          fetchError: errMsg,
+        }),
+      }).catch(() => {});
+    } catch {}
+  }
+
+  if (errMsg) throw new Error(`Network error: ${errMsg}`);
+
+  let d = {};
+  try { d = JSON.parse(rawText); } catch {}
+  const code = String(d.resCode ?? d.responsecode ?? (r.ok ? '200' : r.status));
+  if (code !== '200') {
+    throw new Error(d.resDesc || d.responsedescription || d.message || `Zort AddTransfer error ${code}`);
+  }
+  // AddTransfer success returns detail.id. No id = something wrong even if code=200.
+  if (!d.detail || (d.detail.id === undefined && d.detail.Id === undefined)) {
+    throw new Error(`AddTransfer ส่งแล้วแต่ Zort ไม่คืน transfer id — โปรดเช็คใน Zort ว่ารายการสร้างหรือไม่ (raw: ${rawText.slice(0,200)})`);
+  }
 }
 
 // ── dashboard ────────────────────────────────────────────────────
